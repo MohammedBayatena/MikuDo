@@ -167,7 +167,7 @@ Also yours to set: a sidebar GIF, Auto Save, the AI and speech models, and scree
 You need Windows 10 or 11 (x64), the [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0), and the [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (already on most PCs).
 
 ```powershell
-git clone <your-repo-url> MikuDo
+git clone https://github.com/MohammedBayatena/MikuDo.git MikuDo
 cd MikuDo
 dotnet run --project MikuDo
 ```
