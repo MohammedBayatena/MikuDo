@@ -1,0 +1,1477 @@
+<UserControl x:Class="MikuDo.Views.TaskDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             xmlns:svc="clr-namespace:MikuDo.Services"
+             xmlns:vm="clr-namespace:MikuDo.ViewModels"
+             xmlns:views="clr-namespace:MikuDo.Views"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <!-- A small square action over an image thumbnail; its Tag is the icon -->
+        <Style x:Key="ThumbAction" TargetType="Button">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="6" BorderThickness="1"
+                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderSoftBrush}">
+                            <ui:Icon Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Size="11" StrokeThickness="2.2"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                     Stroke="{DynamicResource TextSecondaryBrush}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:EqualsToOnOffConverter x:Key="EqOnOff"/>
+        <conv:BoolToOnOffConverter x:Key="BoolOnOff"/>
+        <conv:BoolToStarWidthConverter x:Key="StarWidth"/>
+        <conv:DoneToDecorationsConverter x:Key="Strike"/>
+        <conv:DoneToForegroundConverter x:Key="DoneFg"/>
+        <conv:MultiEqualsToOnOffConverter x:Key="MultiEqOnOff"/>
+        <conv:SidebarColumnConverter x:Key="SidebarColumn"/>
+        <conv:SubtractConverter x:Key="Minus"/>
+        <conv:WidthAtLeastConverter x:Key="WidthAtLeast"/>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource SurfaceBrush}"
+          TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══ Header ═══ -->
+        <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Style="{StaticResource GhostButton}" Padding="11,7"
+                        Command="{Binding CancelCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:Icon Data="{StaticResource IconChevronLeft}" Size="13" StrokeThickness="2"
+                                 Stroke="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Text="{Binding ParentLabel}" Margin="6,0,0,0" VerticalAlignment="Center"
+                                   FontSize="11.5" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Button>
+
+                <TextBlock Grid.Column="1" Text="{Binding WorkspaceLabel}" Margin="12,0,0,0" FontSize="11.5"
+                           VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"/>
+
+                <StackPanel Grid.Column="2" Margin="12,0,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border CornerRadius="9" Padding="3" Background="{DynamicResource HoverBrush}">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource SegmentButton}" Content="Edit"
+                                Command="{Binding SetEditorModeCommand}" CommandParameter="Edit"
+                                Tag="{Binding EditorMode, Converter={StaticResource EqOnOff}, ConverterParameter=Edit}"/>
+                        <Button Style="{StaticResource SegmentButton}" Content="Split"
+                                Command="{Binding SetEditorModeCommand}" CommandParameter="Split"
+                                Tag="{Binding EditorMode, Converter={StaticResource EqOnOff}, ConverterParameter=Split}"/>
+                        <Button Style="{StaticResource SegmentButton}" Content="Preview"
+                                Command="{Binding SetEditorModeCommand}" CommandParameter="Preview"
+                                Tag="{Binding EditorMode, Converter={StaticResource EqOnOff}, ConverterParameter=Preview}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Comments: a tab apart from the three ways of showing the description -->
+                <Border Margin="8,0,0,0" CornerRadius="9" Padding="3" Background="{DynamicResource HoverBrush}">
+                    <Button Style="{StaticResource SegmentButton}" ToolTip="Comments on this task"
+                            Command="{Binding SetEditorModeCommand}" CommandParameter="Comments"
+                            Tag="{Binding EditorMode, Converter={StaticResource EqOnOff}, ConverterParameter=Comments}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconComment}" Size="13" StrokeThickness="1.9"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <TextBlock Text="Comments" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            <Border MinWidth="17" Height="16" CornerRadius="4" Padding="5,0" Margin="6,0,0,0"
+                                    Background="{DynamicResource AccentSoftAltBrush}"
+                                    Visibility="{Binding HasComments, Converter={StaticResource Vis}}">
+                                <TextBlock Text="{Binding CommentCount}" FontSize="10" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource AccentDarkBrush}"/>
+                            </Border>
+                        </StackPanel>
+                    </Button>
+                </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4" Orientation="Horizontal">
+                    <Button Style="{StaticResource GhostButton}" Content="Save" Padding="12,8" FontSize="11.5"
+                            ToolTip="{Binding [app.save], Source={x:Static svc:ShortcutText.InParens}, StringFormat='Save and go back{0}'}" Command="{Binding SaveCommand}"
+                            Visibility="{Binding Main.IsAutoSave, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+
+                    <!-- With auto-save on, Save gives way to a pill saying where things
+                         stand. Clicking it writes straight away; the state text keeps a
+                         fixed width so the buttons beside it do not shuffle. -->
+                    <Button Style="{StaticResource GhostButton}" Padding="11,8" Command="{Binding SaveNowCommand}"
+                            ToolTip="Changes save as you go and when you leave. Switch it off in Settings."
+                            Visibility="{Binding Main.IsAutoSave, Converter={StaticResource Vis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="7" Height="7" VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SaveState}" Value="Saving…">
+                                                <Setter Property="Fill" Value="{DynamicResource AccentBrush}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding SaveState}" Value="">
+                                                <Setter Property="Fill" Value="{DynamicResource TextGhostBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="Auto Save" Margin="7,0,0,0" FontSize="11.5" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding SaveState}" Margin="6,0,0,0" MinWidth="46" FontSize="11"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource DangerButton}" Content="Delete" Padding="12,8" FontSize="11.5"
+                            Margin="8,0,0,0" Command="{Binding DeleteCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ Body ═══ -->
+        <!-- Islands: the title, editor and side panels as cards on the muted canvas.
+             Flat: edge to edge, the side panels divided from the editor by a border. -->
+        <Grid x:Name="Body" Grid.Row="1" Style="{StaticResource PageCanvas}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="380"/>
+                <!-- The width the user dragged it to, or the 48px rail while collapsed -->
+                <ColumnDefinition>
+                    <ColumnDefinition.Width>
+                        <MultiBinding Converter="{StaticResource SidebarColumn}" ConverterParameter="48">
+                            <Binding Path="IsSidebarCollapsed"/>
+                            <Binding Path="SidebarWidth"/>
+                        </MultiBinding>
+                    </ColumnDefinition.Width>
+                </ColumnDefinition>
+            </Grid.ColumnDefinitions>
+
+            <!-- ── Left: title + editor ── -->
+            <DockPanel Grid.Column="0" Margin="{ui:ByLayout Islands='20,20,16,20', Flat=0}">
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource Card}" Padding="{ui:ByLayout Islands='14,12', Flat='20,14'}"
+                        BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                    <StackPanel>
+                        <!-- The note the task was made from; a click opens it -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8" Visibility="{Binding HasNote, Converter={StaticResource Vis}}">
+                            <ui:Icon Data="{StaticResource IconNoteSmall}" Size="12" StrokeThickness="2.1"
+                                     VerticalAlignment="Center" Stroke="{DynamicResource TextFaintBrush}"/>
+                            <TextBlock Text="From note" Margin="5,0,8,0" FontSize="11" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <Button Style="{StaticResource GhostButton}" Padding="8,3" FontSize="11" ToolTip="{Binding NotePath}"
+                                    Command="{Binding OpenNoteCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding NoteName}" MaxWidth="280" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                    <ui:Icon Data="{StaticResource IconChevronRight}" Size="10" StrokeThickness="2.4"
+                                             Margin="5,0,0,0" VerticalAlignment="Center" Stroke="{DynamicResource ChevronBrush}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- The tasks this one is a subtask of; a click opens one -->
+                        <DockPanel Margin="0,0,0,8" Visibility="{Binding HasParents, Converter={StaticResource Vis}}">
+                            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,4,8,0">
+                                <ui:Icon Data="{StaticResource IconSubtasks}" Size="12" StrokeThickness="2.2"
+                                         VerticalAlignment="Center" Stroke="{DynamicResource TextFaintBrush}"/>
+                                <TextBlock Text="Subtask of" Margin="5,0,0,0" FontSize="11" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Foreground="{DynamicResource TextSubtleBrush}"/>
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding Parents}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource GhostButton}" Padding="8,3" Margin="0,0,6,4"
+                                                FontSize="11" ToolTip="Open this task"
+                                                Command="{Binding DataContext.OpenParentCommand,
+                                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                                         Fill="{Binding StatusForeground}"/>
+                                                <TextBlock Text="{Binding Title}" Margin="6,0,0,0" MaxWidth="280"
+                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                <ui:Icon Data="{StaticResource IconChevronRight}" Size="10" StrokeThickness="2.4"
+                                                         Margin="5,0,0,0" VerticalAlignment="Center"
+                                                         Stroke="{DynamicResource ChevronBrush}"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </DockPanel>
+
+                        <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource PlainTextArea}" FontFamily="{StaticResource AppFont}"
+                                 FontSize="16" FontWeight="Bold" Padding="0" AcceptsReturn="False"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 ui:Placeholder.Text="Task name"/>
+
+                        <WrapPanel Margin="0,10,0,0">
+                            <!-- Status -->
+                            <Grid VerticalAlignment="Center" Margin="0,0,10,4">
+                                <Button Style="{StaticResource RowButton}" Command="{Binding ToggleStatusMenuCommand}"
+                                        ToolTip="Change status">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{Binding StatusForeground}"/>
+                                        <TextBlock Text="{Binding StatusName}" Margin="6,0,4,0" FontSize="11.5"
+                                                   FontWeight="SemiBold" Foreground="{Binding StatusForeground}"/>
+                                        <ui:Icon Data="{StaticResource IconCaretDown}" Size="10" StrokeThickness="2.4"
+                                                 Stroke="{DynamicResource TextFaintBrush}"/>
+                                    </StackPanel>
+                                </Button>
+                                <Popup IsOpen="{Binding IsStatusMenuOpen, Mode=TwoWay}" StaysOpen="False"
+                                       AllowsTransparency="True" Placement="Bottom" VerticalOffset="4" PopupAnimation="None">
+                                    <ContentControl Style="{StaticResource Popover}" Width="130" Padding="5" Margin="10">
+                                        <ItemsControl ItemsSource="{Binding StatusChoices}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Style="{StaticResource MenuRowButton}" Content="{Binding}"
+                                                            Click="StatusPick_Click"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ContentControl>
+                                </Popup>
+                            </Grid>
+
+                            <Border Width="1" Height="16" Margin="0,0,10,4" Background="{DynamicResource BorderFaintBrush}"/>
+
+                            <!-- Labels -->
+                            <ItemsControl ItemsSource="{Binding TagChips}" VerticalAlignment="Center">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="6" Padding="7,3" Margin="0,0,6,4" Background="{Binding Background}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="5" Height="5" Fill="{Binding Foreground}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Label}" Margin="5,0,0,0" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{Binding Foreground}"/>
+                                                <Button Style="{StaticResource IconButton}" Width="12" Height="12" Margin="5,0,0,0"
+                                                        ToolTip="Remove label"
+                                                        Command="{Binding DataContext.RemoveTagCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <ui:Icon Data="{StaticResource IconClose}" Size="8" StrokeThickness="3"
+                                                             Stroke="{Binding Foreground}"/>
+                                                </Button>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Grid Margin="0,0,10,4">
+                                <Button Style="{StaticResource DashedButton}" Padding="8,3" FontSize="10.5"
+                                        Command="{Binding ToggleTagEditorCommand}" ToolTip="Add a label">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:Icon Data="{StaticResource IconPlus}" Size="10" StrokeThickness="2.4"
+                                                 Stroke="{DynamicResource TextFaintBrush}"/>
+                                        <TextBlock Text="Label" Margin="5,0,0,0" FontSize="10.5" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                </Button>
+                                <Popup IsOpen="{Binding IsTagEditorOpen, Mode=TwoWay}" StaysOpen="False"
+                                       AllowsTransparency="True" Placement="Bottom" VerticalOffset="4" PopupAnimation="None">
+                                    <ContentControl Style="{StaticResource Popover}" Width="220" Padding="12,10" Margin="10">
+                                        <StackPanel>
+                                            <TextBlock Text="LABELS" FontSize="10" FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextGhostBrush}"/>
+                                            <ItemsControl ItemsSource="{Binding SuggestedLabels}" Margin="0,7,0,0">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Style="{StaticResource ChoiceChipButton}" Content="{Binding}"
+                                                                Margin="0,0,6,6" FontSize="10.5" Padding="9,3"
+                                                                Click="TagSuggestion_Click"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBox Style="{StaticResource SmallInputBox}" Margin="0,4,0,0"
+                                                     ui:Placeholder.Text="New label, then Enter"
+                                                     KeyDown="TagInput_KeyDown"
+                                                     Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}"/>
+                                        </StackPanel>
+                                    </ContentControl>
+                                </Popup>
+                            </Grid>
+
+                            <Border Width="1" Height="16" Margin="0,0,10,4" Background="{DynamicResource BorderFaintBrush}"/>
+
+                            <!-- Priority -->
+                            <ItemsControl ItemsSource="{Binding PriorityChoices}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource ChoiceChipButton}" Content="{Binding}" Margin="0,0,5,4"
+                                                FontSize="10.5" Padding="9,3" Click="PriorityPick_Click"
+                                                ToolTip="Priority">
+                                            <Button.Tag>
+                                                <MultiBinding Converter="{StaticResource MultiEqOnOff}">
+                                                    <Binding/>
+                                                    <Binding Path="DataContext.Priority"
+                                                             RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                                </MultiBinding>
+                                            </Button.Tag>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border Width="1" Height="16" Margin="0,0,10,4" Background="{DynamicResource BorderFaintBrush}"/>
+
+                            <TextBlock VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource TextSubtleBrush}">
+                                <Run Text="{Binding SubtaskProgress, Mode=OneWay}"/><Run Text=" subtasks"/>
+                            </TextBlock>
+
+                            <Button Style="{StaticResource RowButton}" Margin="12,0,0,4" VerticalAlignment="Center"
+                                    ToolTip="Show the comments" Cursor="Hand"
+                                    Command="{Binding SetEditorModeCommand}" CommandParameter="Comments"
+                                    Visibility="{Binding HasComments, Converter={StaticResource Vis}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:Icon Data="{StaticResource IconComment}" Size="13" StrokeThickness="1.9"
+                                             Stroke="{DynamicResource TextSubtleBrush}"/>
+                                    <TextBlock Text="{Binding CommentCountLabel}" Margin="5,0,0,0" FontSize="11"
+                                               FontWeight="SemiBold" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                            </Button>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Editor / preview, or the comments -->
+                <Border Style="{StaticResource Card}" Margin="{ui:ByLayout Islands='0,14,0,0', Flat=0}" ClipToBounds="True">
+                    <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Find: a row of its own above the description, since the preview is a
+                         browser window drawn over anything laid on it -->
+                    <views:FindBar x:Name="FindBarView"/>
+
+                    <Grid Grid.Row="1" Visibility="{Binding ShowComments, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{Binding ShowEditor, Converter={StaticResource StarWidth}}"/>
+                            <ColumnDefinition Width="{Binding ShowPreview, Converter={StaticResource StarWidth}}"/>
+                        </Grid.ColumnDefinitions>
+
+                        <DockPanel Grid.Column="0" Visibility="{Binding ShowEditor, Converter={StaticResource Vis}}">
+                            <!-- Same height as the preview's header, so the two halves line up. The
+                                 right edge of this header, the formatting bar and the editor draws
+                                 one unbroken line between the editor and the preview. -->
+                            <Border DockPanel.Dock="Top" Height="38" Padding="12,0,6,0"
+                                    BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,1">
+                                <DockPanel x:Name="MarkdownHeader" VerticalAlignment="Center" LastChildFill="False">
+                                    <TextBlock DockPanel.Dock="Left" Text="MARKDOWN" Style="{StaticResource SectionLabel}"
+                                               FontWeight="Bold" VerticalAlignment="Center" Margin="2,0,10,0"/>
+
+                                    <!-- Rewrite with AI: the selection, or the whole description -->
+                                    <Grid DockPanel.Dock="Left" Margin="0,0,10,0" VerticalAlignment="Center">
+                                        <Button x:Name="RewriteButton" Padding="9,4" FontSize="11" Focusable="False"
+                                                Click="Rewrite_Click" ToolTip="{Binding RewriteToolTip}"
+                                                ToolTipService.ShowOnDisabled="True"
+                                                Visibility="{Binding IsRewriting, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding CanRewrite}" Value="False">
+                                                            <Setter Property="Opacity" Value="0.5"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Icon Data="{StaticResource IconAiStar}" Size="12" StrokeThickness="0"
+                                                         Fill="{DynamicResource AiStarBrush}"/>
+                                                <TextBlock Text="Rewrite" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                    Visibility="{Binding IsRewriting, Converter={StaticResource Vis}}">
+                                            <ui:Icon Data="{StaticResource IconAiStar}" Size="12" StrokeThickness="0"
+                                                     Fill="{DynamicResource AiStarBrush}"/>
+                                            <TextBlock Text="Rewriting…" Margin="5,0,4,0" FontSize="11" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" Foreground="{DynamicResource AccentDarkBrush}"/>
+                                            <Button Style="{StaticResource IconButton}" Focusable="False" ToolTip="Stop"
+                                                    Command="{Binding CancelRewriteCommand}">
+                                                <ui:Icon Data="{StaticResource IconClose}" Size="9" StrokeThickness="2.6"
+                                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding RewriteNote}" FontSize="11" VerticalAlignment="Center"
+                                                   HorizontalAlignment="Left" Foreground="{DynamicResource TextFaintBrush}"
+                                                   Visibility="{Binding RewriteNote, Converter={StaticResource Vis}}"/>
+                                        <Popup IsOpen="{Binding IsRewriteHelpOpen, Mode=TwoWay}" StaysOpen="False"
+                                               PlacementTarget="{Binding ElementName=RewriteButton}" Placement="Bottom"
+                                               VerticalOffset="4" AllowsTransparency="True" PopupAnimation="None">
+                                            <ContentControl Style="{StaticResource Popover}" Width="270" Padding="14,12" Margin="10">
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <ui:Icon Data="{StaticResource IconAiStar}" Size="13" StrokeThickness="0"
+                                                                 Fill="{DynamicResource AiStarBrush}"/>
+                                                        <TextBlock Text="Rewrite needs the AI model" Margin="6,0,0,0" FontSize="12.5"
+                                                                   FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                    </StackPanel>
+                                                    <TextBlock Margin="0,5,0,0" FontSize="11.5" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource TextSubtleBrush}"
+                                                               Text="It uses the same model as AI Import. Download it in Settings; it runs on this PC."/>
+                                                    <Button Style="{StaticResource PrimaryButton}" Content="Open Settings" Margin="0,11,0,0"
+                                                            HorizontalAlignment="Left" Padding="13,7" FontSize="11.5"
+                                                            Command="{Binding OpenAiSettingsCommand}"/>
+                                                </StackPanel>
+                                            </ContentControl>
+                                        </Popup>
+                                    </Grid>
+
+                                    <!-- The checklist as subtasks: the items selected, or all of them. For a few seconds
+                                         after, what it made stands in its place. In a narrow editor the button
+                                         keeps only its icon, and narrower still it gives way, so Dictate stays in
+                                         view; the chip over selected lines and the editor's menu still offer it. -->
+                                    <Grid DockPanel.Dock="Left" VerticalAlignment="Center"
+                                          Visibility="{Binding ActualWidth, ElementName=MarkdownHeader,
+                                                       Converter={StaticResource WidthAtLeast}, ConverterParameter=390}">
+                                        <Button Style="{StaticResource GhostButton}" Margin="0,0,10,0" Padding="9,4" FontSize="11" Focusable="False"
+                                                Click="MakeSubtasks_Click" ToolTip="{Binding ChecklistToolTip}"
+                                                Visibility="{Binding ShowSubtasksButton, Converter={StaticResource Vis}}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Icon Data="{StaticResource IconSubtasks}" Size="12" StrokeThickness="2"
+                                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Text="To subtasks" Margin="5,0,0,0" VerticalAlignment="Center"
+                                                           Visibility="{Binding ActualWidth, ElementName=MarkdownHeader,
+                                                                        Converter={StaticResource WidthAtLeast}, ConverterParameter=470}"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBlock Text="{Binding SubtasksNote}" Margin="0,0,10,0" FontSize="11" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" Foreground="{DynamicResource AccentDarkBrush}"
+                                                   Visibility="{Binding SubtasksNote, Converter={StaticResource Vis}}"/>
+                                    </Grid>
+
+                                    <!-- Dictation: speak, and the words land at the caret. Greyed out
+                                         until a speech model is installed; a click then says where to get one. -->
+                                    <Grid DockPanel.Dock="Left" Margin="0,0,10,0" VerticalAlignment="Center">
+                                        <!-- One button in two halves: Dictate, then the mode this page dictates in -->
+                                        <Border x:Name="DictateButton" Style="{StaticResource SplitButtonFrame}"
+                                                Visibility="{Binding IsDictationIdle, Converter={StaticResource Vis}}">
+                                            <Grid ui:RoundedClip.Radius="8">
+                                                <Grid.Style>
+                                                    <Style TargetType="Grid">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsDictationAvailable}" Value="False">
+                                                                <Setter Property="Opacity" Value="0.5"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Grid.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Button Style="{StaticResource SplitPartButton}" Padding="9,4" FontSize="11" Focusable="False"
+                                                            Command="{Binding DictateCommand}" ToolTip="{Binding DictateToolTip}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <ui:Icon Data="{StaticResource IconMic}" Size="13" StrokeThickness="1.9"
+                                                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                            <TextBlock Text="Dictate" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Border Style="{StaticResource SplitButtonDivider}"
+                                                            Visibility="{Binding IsDictationAvailable, Converter={StaticResource Vis}}"/>
+                                                    <Button x:Name="DictationModeButton" Style="{StaticResource SplitPartButton}" Padding="8,4"
+                                                            FontSize="11" Focusable="False"
+                                                            ToolTip="How this dictation is written down, for this task only"
+                                                            Command="{Binding ToggleDictationModeMenuCommand}"
+                                                            Visibility="{Binding IsDictationAvailable, Converter={StaticResource Vis}}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <ui:Icon Data="{StaticResource IconAiStar}" Size="11" StrokeThickness="0" Margin="0,0,5,0"
+                                                                     Fill="{DynamicResource AiStarBrush}"
+                                                                     Visibility="{Binding IsExactMode, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                                                            <TextBlock Text="{Binding DictationModeLabel}" VerticalAlignment="Center"/>
+                                                            <ui:Icon Data="{StaticResource IconCaretDown}" Size="9" StrokeThickness="2.4" Margin="5,0,0,0"
+                                                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+
+                                        <Popup IsOpen="{Binding IsDictationModeMenuOpen, Mode=TwoWay}" StaysOpen="False"
+                                               PlacementTarget="{Binding ElementName=DictationModeButton}" Placement="Bottom"
+                                               VerticalOffset="4" AllowsTransparency="True" PopupAnimation="None">
+                                            <ContentControl Style="{StaticResource Popover}" Width="250" Padding="5" Margin="10">
+                                                <StackPanel>
+                                                    <TextBlock Text="FOR THIS TASK" FontSize="10" FontWeight="Bold" Margin="9,6,9,4"
+                                                               Foreground="{DynamicResource TextGhostBrush}"/>
+                                                    <Button Style="{StaticResource MenuRowButton}" Command="{Binding SetDictationModeCommand}"
+                                                            CommandParameter="Exact">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Grid Width="12" VerticalAlignment="Top" Margin="0,2,0,0">
+                                                                <ui:Icon Data="{StaticResource IconCheck}" Size="12" StrokeThickness="2.4"
+                                                                         Stroke="{DynamicResource AccentBrush}"
+                                                                         Visibility="{Binding IsExactMode, Converter={StaticResource Vis}}"/>
+                                                            </Grid>
+                                                            <StackPanel Margin="8,0,0,0">
+                                                                <TextBlock Text="Exact" FontWeight="SemiBold"/>
+                                                                <TextBlock Text="Your words, as spoken" FontSize="11" FontWeight="Normal"
+                                                                           Foreground="{DynamicResource TextFaintBrush}"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Style="{StaticResource MenuRowButton}" Command="{Binding SetDictationModeCommand}"
+                                                            CommandParameter="WriteUp" IsEnabled="{Binding CanWriteUp}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Grid Width="12" VerticalAlignment="Top" Margin="0,2,0,0">
+                                                                <ui:Icon Data="{StaticResource IconCheck}" Size="12" StrokeThickness="2.4"
+                                                                         Stroke="{DynamicResource AccentBrush}"
+                                                                         Visibility="{Binding IsExactMode, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                                                            </Grid>
+                                                            <StackPanel Margin="8,0,0,0">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <ui:Icon Data="{StaticResource IconAiStar}" Size="11" StrokeThickness="0"
+                                                                             Margin="0,0,5,0" Fill="{DynamicResource AiStarBrush}"/>
+                                                                    <TextBlock Text="Write up" FontWeight="SemiBold"/>
+                                                                </StackPanel>
+                                                                <TextBlock FontSize="11" FontWeight="Normal" TextWrapping="Wrap" MaxWidth="190"
+                                                                           Foreground="{DynamicResource TextFaintBrush}">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Text" Value="The AI tidies it into a description"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding CanWriteUp}" Value="False">
+                                                                                    <Setter Property="Text" Value="Needs the AI Import model: see Settings"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <TextBlock Text="Settings sets the mode every task starts in." FontSize="10.5" Margin="9,6,9,5"
+                                                               TextWrapping="Wrap" Foreground="{DynamicResource TextGhostBrush}"/>
+                                                </StackPanel>
+                                            </ContentControl>
+                                        </Popup>
+
+                                        <Border CornerRadius="7" Padding="9,2,3,2" Background="{DynamicResource DangerSoftBrush}"
+                                                BorderBrush="{DynamicResource DangerBorderBrush}" BorderThickness="1"
+                                                Visibility="{Binding IsDictating, Converter={StaticResource Vis}}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse x:Name="ListeningDot" Width="7" Height="7" VerticalAlignment="Center"
+                                                         Fill="{DynamicResource DangerAccentBrush}">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsDictating}" Value="True">
+                                                                    <DataTrigger.EnterActions>
+                                                                        <BeginStoryboard x:Name="Pulse">
+                                                                            <Storyboard>
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.25"
+                                                                                                 Duration="0:0:0.7" AutoReverse="True"
+                                                                                                 RepeatBehavior="Forever"/>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </DataTrigger.EnterActions>
+                                                                    <DataTrigger.ExitActions>
+                                                                        <StopStoryboard BeginStoryboardName="Pulse"/>
+                                                                    </DataTrigger.ExitActions>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                                <TextBlock Text="Listening" Margin="7,0,0,0" FontSize="11"
+                                                           FontWeight="SemiBold" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource DangerBrush}"/>
+                                                <TextBlock Text="{Binding DictationElapsed}" Margin="6,0,6,0" FontSize="11"
+                                                           VerticalAlignment="Center" Foreground="{DynamicResource DangerBrush}"/>
+                                                <Button Style="{StaticResource IconButton}" Focusable="False" ToolTip="Stop and write it down"
+                                                        Command="{Binding StopDictationCommand}">
+                                                    <ui:Icon Data="{StaticResource IconStop}" Size="17" StrokeThickness="0"
+                                                             Fill="{DynamicResource DangerBrush}"/>
+                                                </Button>
+                                                <Button Style="{StaticResource IconButton}" Focusable="False" ToolTip="Discard (Esc)"
+                                                        Command="{Binding CancelDictationCommand}">
+                                                    <ui:Icon Data="{StaticResource IconClose}" Size="9" StrokeThickness="2.6"
+                                                             Stroke="{DynamicResource TextMutedBrush}"/>
+                                                </Button>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <TextBlock Text="{Binding DictationStatus}" FontSize="11" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" Foreground="{DynamicResource AccentDarkBrush}"
+                                                   Visibility="{Binding IsDictationBusy, Converter={StaticResource Vis}}"/>
+
+                                        <Popup IsOpen="{Binding IsDictationHelpOpen, Mode=TwoWay}" StaysOpen="False"
+                                               PlacementTarget="{Binding ElementName=DictateButton}" Placement="Bottom"
+                                               VerticalOffset="4" AllowsTransparency="True" PopupAnimation="None">
+                                            <ContentControl Style="{StaticResource Popover}" Width="270" Padding="14,12" Margin="10">
+                                                <StackPanel>
+                                                    <TextBlock Text="Dictation needs a speech model" FontSize="12.5" FontWeight="Bold"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                    <TextBlock Margin="0,5,0,0" FontSize="11.5" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource TextSubtleBrush}"
+                                                               Text="Download one in Settings, under Dictation. The recommended one is 60 MB and runs on this PC: nothing you say leaves it."/>
+                                                    <Button Style="{StaticResource PrimaryButton}" Content="Open Settings" Margin="0,11,0,0"
+                                                            HorizontalAlignment="Left" Padding="13,7" FontSize="11.5"
+                                                            Command="{Binding OpenDictationSettingsCommand}"/>
+                                                </StackPanel>
+                                            </ContentControl>
+                                        </Popup>
+                                    </Grid>
+                                </DockPanel>
+                            </Border>
+                            <Border DockPanel.Dock="Top" Padding="8,4" BorderBrush="{DynamicResource DividerBrush}"
+                                    BorderThickness="0,0,1,1">
+                                <!-- The formatting bar, on a row of its own so a narrow editor never
+                                     cuts buttons off; at its narrowest it wraps. Its buttons never
+                                     take focus, so the caret stays in the editor while they are used. -->
+                                <WrapPanel Orientation="Horizontal" ButtonBase.Click="Format_Click">
+                                    <WrapPanel.Resources>
+                                        <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                            <Setter Property="Width" Value="24"/>
+                                            <Setter Property="Height" Value="24"/>
+                                        </Style>
+                                        <Style TargetType="ui:Icon">
+                                            <Setter Property="Size" Value="14"/>
+                                            <Setter Property="StrokeThickness" Value="2"/>
+                                            <Setter Property="Stroke" Value="{DynamicResource TextMutedBrush}"/>
+                                        </Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Width" Value="1"/>
+                                            <Setter Property="Height" Value="14"/>
+                                            <Setter Property="Margin" Value="5,0"/>
+                                            <Setter Property="Background" Value="{DynamicResource DividerBrush}"/>
+                                        </Style>
+                                    </WrapPanel.Resources>
+                                    <Button Tag="heading" ToolTip="Heading"><ui:Icon Data="{StaticResource IconHeading}"/></Button>
+                                    <Button Tag="bold" ToolTip="Bold (Ctrl+B)"><ui:Icon Data="{StaticResource IconBold}" StrokeThickness="2.2"/></Button>
+                                    <Button Tag="italic" ToolTip="Italic (Ctrl+I)"><ui:Icon Data="{StaticResource IconItalic}"/></Button>
+                                    <Button Tag="strike" ToolTip="Strikethrough"><ui:Icon Data="{StaticResource IconStrike}"/></Button>
+                                    <Border/>
+                                    <Button Tag="quote" ToolTip="Quote"><ui:Icon Data="{StaticResource IconQuote}"/></Button>
+                                    <Button Tag="code" ToolTip="Code (Ctrl+E)"><ui:Icon Data="{StaticResource IconCode}"/></Button>
+                                    <Button Tag="codeblock" ToolTip="Code block"><ui:Icon Data="{StaticResource IconCodeBlock}" StrokeThickness="1.8"/></Button>
+                                    <Button Tag="link" ToolTip="Link"><ui:Icon Data="{StaticResource IconLink}"/></Button>
+                                    <Border/>
+                                    <Button Tag="bullet" ToolTip="Bulleted list"><ui:Icon Data="{StaticResource IconBulletList}" StrokeThickness="2.1"/></Button>
+                                    <Button Tag="number" ToolTip="Numbered list"><ui:Icon Data="{StaticResource IconNumberList}" StrokeThickness="1.9"/></Button>
+                                    <Button Tag="task" ToolTip="Checkbox list"><ui:Icon Data="{StaticResource IconTaskList}" StrokeThickness="1.9"/></Button>
+                                    <Border/>
+                                    <Button Tag="table" ToolTip="Table"><ui:Icon Data="{StaticResource IconTable}" StrokeThickness="1.8"/></Button>
+                                    <Button Tag="rule" ToolTip="Horizontal rule"><ui:Icon Data="{StaticResource IconRule}" StrokeThickness="2.2"/></Button>
+                                    <Button Tag="diagram" ToolTip="Insert a diagram"><ui:Icon Data="{StaticResource IconDiagram}" StrokeThickness="1.8"/></Button>
+                                </WrapPanel>
+                            </Border>
+                            <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,0">
+                                <Grid>
+                                    <!-- Find's matches, under the editor's text -->
+                                    <ui:FindHighlights x:Name="EditorMarks"/>
+                                    <TextBox x:Name="MarkdownBox" Style="{StaticResource PlainTextArea}"
+                                             IsReadOnly="{Binding IsRewriting}"
+                                             ui:Placeholder.Text="# Title&#x0a;&#x0a;Write in markdown…"
+                                             PreviewKeyDown="MarkdownBox_PreviewKeyDown"
+                                             SelectionChanged="MarkdownBox_SelectionChanged"
+                                             LostKeyboardFocus="MarkdownBox_LostKeyboardFocus"
+                                             ContextMenuOpening="MarkdownBox_ContextMenuOpening"
+                                             Text="{Binding Markdown, UpdateSourceTrigger=PropertyChanged, Delay=120}">
+                                        <!-- Filled as it opens: editing, then the formatting bar's actions -->
+                                        <TextBox.ContextMenu>
+                                            <ContextMenu/>
+                                        </TextBox.ContextMenu>
+                                    </TextBox>
+
+                                    <!-- Checklist lines picked out in the editor can become subtasks on the spot -->
+                                    <Popup x:Name="SubtaskChip" PlacementTarget="{Binding ElementName=MarkdownBox}" Placement="Relative"
+                                           AllowsTransparency="True" StaysOpen="True" PopupAnimation="None" Focusable="False">
+                                        <ContentControl Style="{StaticResource Popover}" Padding="5" Margin="10">
+                                            <Button Style="{StaticResource PrimaryButton}" Padding="11,6" Focusable="False"
+                                                    Click="SelectionSubtasks_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <ui:Icon Data="{StaticResource IconSubtasks}" Size="12" StrokeThickness="2.2"
+                                                             VerticalAlignment="Center" Stroke="{DynamicResource ButtonPrimaryForegroundBrush}"/>
+                                                    <TextBlock x:Name="SubtaskChipLabel" Text="Make subtasks" Margin="6,0,0,0" FontSize="12"
+                                                               FontWeight="Bold" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource ButtonPrimaryForegroundBrush}"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </ContentControl>
+                                    </Popup>
+                                </Grid>
+                            </Border>
+                        </DockPanel>
+
+                        <DockPanel Grid.Column="1" Visibility="{Binding ShowPreview, Converter={StaticResource Vis}}">
+                            <Border DockPanel.Dock="Top" Height="38" Padding="14,0,8,0" BorderBrush="{DynamicResource DividerBrush}"
+                                    BorderThickness="0,0,0,1">
+                                <DockPanel VerticalAlignment="Center" LastChildFill="False">
+                                    <TextBlock DockPanel.Dock="Left" Text="PREVIEW" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                               VerticalAlignment="Center"/>
+                                    <!-- In Preview alone the Markdown's bar is hidden, so the checklist's button is here -->
+                                    <Grid DockPanel.Dock="Right" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource GhostButton}" Padding="9,4" FontSize="11" Focusable="False"
+                                                Click="MakeSubtasks_Click" ToolTip="{Binding ChecklistToolTip}"
+                                                Visibility="{Binding ShowPreviewSubtasksButton, Converter={StaticResource Vis}}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Icon Data="{StaticResource IconSubtasks}" Size="12" StrokeThickness="2"
+                                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Text="To subtasks" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBlock Text="{Binding PreviewSubtasksNote}" Margin="0,0,4,0" FontSize="11" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" Foreground="{DynamicResource AccentDarkBrush}"
+                                                   Visibility="{Binding PreviewSubtasksNote, Converter={StaticResource Vis}}"/>
+                                    </Grid>
+                                </DockPanel>
+                            </Border>
+                            <Grid>
+                                <Border x:Name="PreviewPlaceholder" Background="{DynamicResource SurfaceBrush}">
+                                    <TextBlock Text="Loading preview…" FontSize="12" HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"/>
+                                </Border>
+                                <wv2:WebView2 x:Name="PreviewWebView" Visibility="Collapsed"
+                                              DefaultBackgroundColor="Transparent"/>
+                            </Grid>
+                        </DockPanel>
+                    </Grid>
+
+                    <!-- Comments: the conversation scrolls, the composer stays at the foot -->
+                    <DockPanel Grid.Row="1" Visibility="{Binding ShowComments, Converter={StaticResource Vis}}">
+                        <Border DockPanel.Dock="Top" Height="38" Padding="14,0" BorderBrush="{DynamicResource DividerBrush}"
+                                BorderThickness="0,0,0,1">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="COMMENTS" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding CommentCountLabel}" Margin="10,0,0,0" FontSize="11"
+                                           VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"
+                                           Visibility="{Binding HasComments, Converter={StaticResource Vis}}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border DockPanel.Dock="Bottom" Padding="14,12" BorderBrush="{DynamicResource DividerBrush}"
+                                BorderThickness="0,1,0,0">
+                            <StackPanel>
+                                <Border CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                                        Background="{DynamicResource SurfaceBrush}">
+                                    <TextBox x:Name="CommentBox" Style="{StaticResource PlainTextArea}"
+                                             FontFamily="{StaticResource AppFont}" Padding="11,9"
+                                             MinHeight="64" MaxHeight="180" AcceptsTab="False"
+                                             ui:Placeholder.Text="Write a comment…"
+                                             PreviewKeyDown="CommentBox_PreviewKeyDown"
+                                             IsVisibleChanged="CommentBox_IsVisibleChanged"
+                                             Text="{Binding CommentDraft, UpdateSourceTrigger=PropertyChanged}"/>
+                                </Border>
+                                <DockPanel Margin="0,8,0,0">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Content="Comment"
+                                            Padding="14,7" FontSize="11.5" Command="{Binding PostCommentCommand}"/>
+                                    <TextBlock Text="Ctrl+Enter to post" FontSize="11" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFaintBrush}"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="20"
+                                        Visibility="{Binding HasComments, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                                <ui:Icon Data="{StaticResource IconComment}" Size="28" StrokeThickness="1.6"
+                                         HorizontalAlignment="Center" Stroke="{DynamicResource TextGhostBrush}"/>
+                                <TextBlock Text="No comments yet" Margin="0,10,0,0" FontSize="13" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Text="Leave notes, decisions and updates on this task." Margin="0,4,0,0"
+                                           FontSize="11.5" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                                           Foreground="{DynamicResource TextFaintBrush}"/>
+                            </StackPanel>
+
+                            <ScrollViewer x:Name="CommentScroll" VerticalScrollBarVisibility="Auto"
+                                          Visibility="{Binding HasComments, Converter={StaticResource Vis}}">
+                                <ItemsControl ItemsSource="{Binding Comments}" Margin="14,12,14,4" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="card" CornerRadius="9" Padding="12,9,8,11" Margin="0,0,0,8"
+                                                    Background="{DynamicResource SurfaceMutedBrush}"
+                                                    ContextMenuOpening="Comment_ContextMenuOpening">
+                                                <StackPanel>
+                                                    <DockPanel>
+                                                        <StackPanel x:Name="actions" DockPanel.Dock="Right" Orientation="Horizontal" Opacity="0">
+                                                            <Button Style="{StaticResource IconButton}" ToolTip="Copy"
+                                                                    Command="{Binding DataContext.CopyCommentCommand,
+                                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <ui:Icon Data="{StaticResource IconDuplicate}" Size="12" StrokeThickness="2"
+                                                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                                            </Button>
+                                                            <Button Style="{StaticResource IconButton}" ToolTip="Edit" Margin="2,0,0,0"
+                                                                    Command="{Binding DataContext.EditCommentCommand,
+                                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <ui:Icon Data="{StaticResource IconPencil}" Size="12" StrokeThickness="2"
+                                                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                                            </Button>
+                                                            <Button Style="{StaticResource IconButton}" ToolTip="Delete" Margin="2,0,0,0"
+                                                                    Command="{Binding DataContext.DeleteCommentCommand,
+                                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <ui:Icon Data="{StaticResource IconTrash}" Size="12" StrokeThickness="2"
+                                                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                                            </Button>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding WhenLabel}" ToolTip="{Binding FullDate}" FontSize="11"
+                                                                   FontWeight="SemiBold" VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                                                    </DockPanel>
+
+                                                    <TextBlock x:Name="body" Text="{Binding Text}" Margin="0,5,4,0" FontSize="12.5"
+                                                               TextWrapping="Wrap" LineHeight="19"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                                    <StackPanel x:Name="editor" Visibility="Collapsed" Margin="0,6,4,0">
+                                                        <Border CornerRadius="7" BorderThickness="1" Background="{DynamicResource SurfaceBrush}"
+                                                                BorderBrush="{DynamicResource AccentBorderStrongBrush}">
+                                                            <TextBox Style="{StaticResource PlainTextArea}" FontFamily="{StaticResource AppFont}"
+                                                                     Padding="9,7" MinHeight="48" MaxHeight="220" AcceptsTab="False"
+                                                                     PreviewKeyDown="CommentEdit_PreviewKeyDown"
+                                                                     IsVisibleChanged="CommentEdit_IsVisibleChanged"
+                                                                     Text="{Binding Draft, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        </Border>
+                                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                                            <Button Style="{StaticResource GhostButton}" Content="Cancel" Padding="11,6" FontSize="11"
+                                                                    Command="{Binding DataContext.CancelCommentEditCommand,
+                                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}"/>
+                                                            <Button Style="{StaticResource PrimaryButton}" Content="Save" Padding="12,6" FontSize="11"
+                                                                    Margin="6,0,0,0"
+                                                                    Command="{Binding DataContext.SaveCommentEditCommand,
+                                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <Trigger SourceName="card" Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="actions" Property="Opacity" Value="1"/>
+                                                </Trigger>
+                                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                    <Setter TargetName="actions" Property="Visibility" Value="Collapsed"/>
+                                                    <Setter TargetName="body" Property="Visibility" Value="Collapsed"/>
+                                                    <Setter TargetName="editor" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </DockPanel>
+                    </Grid>
+                </Border>
+            </DockPanel>
+
+            <!-- Collapsed, the panel keeps a rail: shut but plainly still there.
+                 The margin comes out of the column, so the two are sized together:
+                 48 wide less a 12 gutter leaves 36 for the rail itself. -->
+            <Border Grid.Column="1" Margin="{ui:ByLayout Islands='0,20,12,20', Flat=0}" CornerRadius="{ui:ByLayout Islands=10, Flat=0}"
+                    Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="{ui:ByLayout Islands=1, Flat='1,0,0,0'}"
+                    Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource Vis}}">
+                <StackPanel VerticalAlignment="Top" Margin="0,8,0,0">
+                    <Button Style="{StaticResource OutlinedIconButton}" Width="26" Height="26"
+                            HorizontalAlignment="Center"
+                            ToolTip="Show attachments and subtasks"
+                            Command="{Binding ToggleSidebarCommand}">
+                        <ui:Icon Data="{StaticResource IconChevronLeft}" Size="13" StrokeThickness="2.6"
+                                 Stroke="{DynamicResource TextSecondaryBrush}"/>
+                    </Button>
+                    <TextBlock Text="ATTACHMENTS" FontSize="9.5" FontWeight="Bold" Margin="0,14,0,0"
+                               HorizontalAlignment="Center" Foreground="{DynamicResource TextSubtleBrush}">
+                        <TextBlock.LayoutTransform>
+                            <RotateTransform Angle="90"/>
+                        </TextBlock.LayoutTransform>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <!-- ── Right: attachments + subtasks ── -->
+            <!-- In Flat a border down the panels' left edge divides them from the editor -->
+            <Border Grid.Column="1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="{ui:ByLayout Islands=0, Flat='1,0,0,0'}"
+                    Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource Vis}, ConverterParameter=invert}">
+            <ScrollViewer Margin="{ui:ByLayout Islands='0,20,20,20', Flat=0}"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+
+                    <Border Style="{StaticResource Card}" Padding="{ui:ByLayout Islands=16, Flat=0}"
+                            BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                        <StackPanel>
+                            <!-- The panel's heading: a strip in Flat, like the Subtasks heading below it -->
+                            <Border Style="{StaticResource PanelHeader}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="ATTACHMENTS" Style="{StaticResource SectionLabel}"
+                                           FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Style="{StaticResource OutlinedIconButton}" Width="24" Height="24"
+                                        ToolTip="Hide this panel" Command="{Binding ToggleSidebarCommand}">
+                                    <ui:Icon Data="{StaticResource IconChevronRight}" Size="12" StrokeThickness="2.4"
+                                             Stroke="{DynamicResource TextSecondaryBrush}"/>
+                                </Button>
+                            </Grid>
+                            </Border>
+
+                            <StackPanel Margin="{ui:ByLayout Islands=0, Flat='20,0,20,16'}">
+                            <!-- Images -->
+                            <Grid Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Images" FontSize="11.5" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Images.Count}" FontSize="10.5"
+                                           Foreground="{DynamicResource TextGhostSoftBrush}"/>
+                            </Grid>
+                            <ScrollViewer MaxHeight="180" Margin="0,7,0,0" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding ImageSlots}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel ItemWidth="55" ItemHeight="55"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid x:Name="thumb" Margin="0,0,4,4" ContextMenuOpening="Thumbnail_ContextMenuOpening">
+                                                <!-- Thumbnail -->
+                                                <Button Style="{StaticResource RowButton}" Cursor="Hand" ToolTip="Open full screen"
+                                                        Visibility="{Binding IsAddSlot, Converter={StaticResource Vis}, ConverterParameter=invert}"
+                                                        Command="{Binding DataContext.OpenImageCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Border CornerRadius="6" ClipToBounds="True"
+                                                            Background="{DynamicResource HoverBrush}">
+                                                        <Image Source="{Binding Source}" Stretch="UniformToFill"/>
+                                                    </Border>
+                                                </Button>
+                                                <!-- Save and remove, in the corner while the pointer is over the thumbnail -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,3,0"
+                                                            HorizontalAlignment="Right" VerticalAlignment="Top">
+                                                    <StackPanel.Style>
+                                                        <Style TargetType="StackPanel">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding IsMouseOver, ElementName=thumb}" Value="True"/>
+                                                                        <Condition Binding="{Binding IsAddSlot}" Value="False"/>
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </MultiDataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </StackPanel.Style>
+                                                    <Button Style="{StaticResource ThumbAction}" ToolTip="Save image" Tag="{StaticResource IconDownload}"
+                                                            Command="{Binding DataContext.SaveImageCommand,
+                                                                      RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Style="{StaticResource ThumbAction}" ToolTip="Remove image" Tag="{StaticResource IconClose}"
+                                                            Margin="3,0,0,0"
+                                                            Command="{Binding DataContext.RemoveImageTileCommand,
+                                                                      RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                                <!-- Add slot -->
+                                                <Button Style="{StaticResource RowButton}" Cursor="Hand" ToolTip="Attach an image"
+                                                        Visibility="{Binding IsAddSlot, Converter={StaticResource Vis}}"
+                                                        Command="{Binding DataContext.AttachImageCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                                    <Border CornerRadius="6" BorderThickness="1"
+                                                            BorderBrush="{DynamicResource DashBorderBrush}">
+                                                        <ui:Icon Data="{StaticResource IconPlus}" Size="13" StrokeThickness="2.2"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                 Stroke="{DynamicResource TextFaintBrush}"/>
+                                                    </Border>
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!-- Audio -->
+                            <Border BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,1,0,0"
+                                    Margin="0,12,0,0" Padding="0,12,0,0">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Audio" FontSize="11.5" FontWeight="Bold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding VoiceMemos.Count}" FontSize="10.5"
+                                                   Foreground="{DynamicResource TextGhostSoftBrush}"/>
+                                    </Grid>
+
+                                    <ItemsControl ItemsSource="{Binding VoiceMemos}" Margin="0,7,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border CornerRadius="8" Padding="6,5" Margin="0,0,0,6"
+                                                        Background="{DynamicResource InlineAddBgBrush}"
+                                                        BorderBrush="{DynamicResource BorderFaintBrush}" BorderThickness="1"
+                                                        ToolTip="{Binding Name}"
+                                                        ContextMenuOpening="Voice_ContextMenuOpening">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <Button Grid.Column="0" Style="{StaticResource AccentSquareButton}"
+                                                                Width="22" Height="22" ToolTip="Play / pause"
+                                                                Command="{Binding DataContext.TogglePlayCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}">
+                                                            <Grid>
+                                                                <ui:Icon Data="{StaticResource IconPlay}" Size="10" StrokeThickness="0"
+                                                                         Fill="{DynamicResource OnAccentBrush}"
+                                                                         Visibility="{Binding IsPlaying, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                                                                <ui:Icon Data="{StaticResource IconPause}" Size="10" StrokeThickness="2.4"
+                                                                         Stroke="{DynamicResource OnAccentBrush}"
+                                                                         Visibility="{Binding IsPlaying, Converter={StaticResource Vis}}"/>
+                                                            </Grid>
+                                                        </Button>
+
+                                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding Bars}" Margin="8,0,6,0"
+                                                                      Height="16" VerticalAlignment="Center">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <UniformGrid Rows="1" VerticalAlignment="Bottom"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Margin="0.6,0" CornerRadius="2" VerticalAlignment="Bottom"
+                                                                            Height="{Binding Height}">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Setter Property="Background" Value="{DynamicResource WaveIdleBrush}"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsPlayed}" Value="True">
+                                                                                        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+
+                                                        <TextBlock Grid.Column="2" Text="{Binding Position}" FontSize="10"
+                                                                   VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"/>
+
+                                                        <Button Grid.Column="3" Style="{StaticResource OutlinedIconButton}" Width="20" Height="20"
+                                                                Margin="6,0,0,0" ToolTip="Stop"
+                                                                Command="{Binding DataContext.StopPlayCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                                            <Rectangle Width="8" Height="8" RadiusX="2" RadiusY="2"
+                                                                       Fill="{DynamicResource TextFaintBrush}"/>
+                                                        </Button>
+
+                                                        <Button Grid.Column="4" Style="{StaticResource IconButton}" Width="20" Height="20"
+                                                                Margin="4,0,0,0" ToolTip="Delete memo"
+                                                                Command="{Binding DataContext.DeleteVoiceCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}">
+                                                            <ui:Icon Data="{StaticResource IconClose}" Size="10" StrokeThickness="2.4"
+                                                                     Stroke="{DynamicResource DangerAccentBrush}"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Button Style="{StaticResource GhostButton}" Padding="6" FontSize="11" Margin="0,2,0,0"
+                                            Command="{Binding ToggleRecordingCommand}">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <Ellipse Width="7" Height="7" VerticalAlignment="Center">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="{DynamicResource TextGhostSoftBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                                                <Setter Property="Fill" Value="{DynamicResource DangerAccentBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                            <TextBlock Margin="6,0,0,0" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="Record voice memo"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                                                <Setter Property="Text" Value="Stop recording"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource DangerAccentBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Files -->
+                            <Border BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,1,0,0"
+                                    Margin="0,12,0,0" Padding="0,11,0,0">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Files" FontSize="11.5" FontWeight="Bold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Files.Count}" FontSize="10.5"
+                                                   Foreground="{DynamicResource TextGhostSoftBrush}"/>
+                                    </Grid>
+
+                                    <ScrollViewer MaxHeight="140" Margin="0,7,0,0" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding Files}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,7" Background="Transparent"
+                                                          ContextMenuOpening="File_ContextMenuOpening">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <ui:Icon Grid.Column="0" Data="{StaticResource IconFile}" Size="14"
+                                                                 Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                                                        <Button Grid.Column="1" Style="{StaticResource RowButton}"
+                                                                HorizontalContentAlignment="Left" Margin="8,0,0,0" ToolTip="Open file"
+                                                                Command="{Binding DataContext.OpenFileCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock Text="{Binding Name}" FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                        </Button>
+                                                        <TextBlock Grid.Column="2" Text="{Binding SizeLabel}" FontSize="10" Margin="6,0,0,0"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource TextGhostSoftBrush}"/>
+                                                        <Button Grid.Column="3" Style="{StaticResource IconButton}" Width="16" Height="16"
+                                                                Margin="4,0,0,0" ToolTip="Remove"
+                                                                Command="{Binding DataContext.RemoveFileCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}">
+                                                            <ui:Icon Data="{StaticResource IconClose}" Size="9" StrokeThickness="2.6"
+                                                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+
+                                    <Button Style="{StaticResource DashedButton}" Margin="0,7,0,0" Padding="6"
+                                            Command="{Binding AttachFileCommand}">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <ui:Icon Data="{StaticResource IconPlus}" Size="12" StrokeThickness="2.2"
+                                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                                            <TextBlock Text="Add attachment" Margin="6,0,0,0" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Subtasks -->
+                    <Border Style="{StaticResource Card}" Margin="{ui:ByLayout Islands='0,14,0,0', Flat=0}" ClipToBounds="True"
+                            BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                        <StackPanel>
+                            <Border BorderThickness="0,0,0,1">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource PanelHeader}">
+                                        <Setter Property="Padding" Value="16,13"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+                                    </Style>
+                                </Border.Style>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Subtasks" FontSize="13" FontWeight="Bold"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <!-- In a narrow sidebar the button keeps only its tick, so the heading is never cut short -->
+                                    <!-- Its own height, centred: in Flat's taller heading strip a stretched button would overrun it -->
+                                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="8,3" Margin="0,-4,10,-4"
+                                            VerticalAlignment="{ui:ByLayout Islands=Stretch, Flat=Center}"
+                                            FontSize="11" ToolTip="Mark every subtask here done"
+                                            Visibility="{Binding HasOpenSubtasks, Converter={StaticResource Vis}}"
+                                            Command="{Binding CompleteSubtasksCommand}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:Icon Data="{StaticResource IconCheck}" Size="11" StrokeThickness="2.4"
+                                                     VerticalAlignment="Center" Stroke="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="Mark all done" Margin="5,0,0,0" VerticalAlignment="Center"
+                                                       Visibility="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Grid, AncestorLevel=2},
+                                                                    Converter={StaticResource WidthAtLeast}, ConverterParameter=215}"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Grid.Column="2" Text="{Binding SubtaskProgress}" FontSize="11" FontWeight="SemiBold"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </Grid>
+                            </Border>
+
+                            <TextBlock Text="No subtasks yet" FontSize="11.5" Margin="16,14"
+                                       Foreground="{DynamicResource TextGhostSoftBrush}"
+                                       Visibility="{Binding Subtasks.Count, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+
+                            <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Subtasks}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="16,10" BorderBrush="{DynamicResource DividerSoftBrush}"
+                                                    BorderThickness="0,0,0,1" Background="Transparent"
+                                                    ContextMenuOpening="Subtask_ContextMenuOpening">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <CheckBox Grid.Column="0" Style="{StaticResource TickBox}" VerticalAlignment="Center"
+                                                              ToolTip="Mark this task done"
+                                                              IsChecked="{Binding IsDone, Mode=TwoWay}"/>
+
+                                                    <Button Grid.Column="1" Style="{StaticResource RowButton}" Margin="11,0,8,0"
+                                                            HorizontalContentAlignment="Left" ToolTip="Open this task"
+                                                            Command="{Binding DataContext.OpenSubtaskCommand,
+                                                                      RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontSize="12.5"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       Foreground="{Binding IsDone, Converter={StaticResource DoneFg}}"
+                                                                       TextDecorations="{Binding IsDone, Converter={StaticResource Strike}}"/>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                                <Ellipse Width="5" Height="5" VerticalAlignment="Center"
+                                                                         Fill="{Binding StatusForeground}"/>
+                                                                <TextBlock Text="{Binding StatusName}" Margin="5,0,0,0" FontSize="10.5"
+                                                                           FontWeight="SemiBold" Foreground="{Binding StatusForeground}"/>
+                                                                <ui:PriorityGlyph Margin="10,0,0,0" VerticalAlignment="Center"
+                                                                                  Priority="{Binding Priority}" Fill="{Binding PriorityForeground}"
+                                                                                  Ghost="{DynamicResource PriorityGhostBrush}"/>
+                                                                <TextBlock Text="{Binding PriorityName}" Margin="5,0,0,0" FontSize="10.5"
+                                                                           FontWeight="SemiBold" Foreground="{Binding PriorityForeground}"
+                                                                           Visibility="{Binding HasPriority, Converter={StaticResource Vis}}"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Button>
+
+                                                    <ui:Icon Grid.Column="2" Data="{StaticResource IconChevronRight}" Size="12"
+                                                             StrokeThickness="2" VerticalAlignment="Center"
+                                                             Stroke="{DynamicResource ChevronBrush}"/>
+
+                                                    <Button Grid.Column="3" Style="{StaticResource IconButton}" Width="18" Height="18"
+                                                            Margin="6,0,0,0" ToolTip="Unlink, keeping the task itself"
+                                                            Command="{Binding DataContext.UnlinkSubtaskCommand,
+                                                                      RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}">
+                                                        <ui:Icon Data="{StaticResource IconClose}" Size="10" StrokeThickness="2.4"
+                                                                 Stroke="{DynamicResource TextFaintBrush}"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!--
+                                Picker over the tasks that already exist. It opens inline
+                                rather than in a popup: a popup is a window of its own that
+                                never takes activation, so after the preview has had the
+                                keyboard a click into a search box there may not get it.
+                            -->
+                            <Border Padding="16,12" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,1,0,0">
+                                <StackPanel>
+                                    <Button Style="{StaticResource DashedButton}" Padding="10,7" HorizontalAlignment="Stretch"
+                                            Command="{Binding ToggleSubtaskPickerCommand}">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <ui:Icon Data="{StaticResource IconPlus}" Size="12" StrokeThickness="2.2"
+                                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                                            <TextBlock Margin="6,0,0,0" FontSize="11.5" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextMutedBrush}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="Link an existing task"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSubtaskPickerOpen}" Value="True">
+                                                                <Setter Property="Text" Value="Done linking"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Button>
+
+                                    <StackPanel Margin="0,10,0,0"
+                                                Visibility="{Binding IsSubtaskPickerOpen, Converter={StaticResource Vis}}">
+                                        <TextBox Style="{StaticResource SmallInputBox}"
+                                                 ui:Placeholder.Text="Search tasks…"
+                                                 IsVisibleChanged="SubtaskSearch_IsVisibleChanged"
+                                                 KeyDown="SubtaskSearch_KeyDown"
+                                                 Text="{Binding SubtaskQuery, UpdateSourceTrigger=PropertyChanged, Delay=120}"/>
+                                        <ItemsControl ItemsSource="{Binding SubtaskWorkspaces}" Margin="0,8,0,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Style="{StaticResource ChoiceChipButton}" Margin="0,0,5,5" Padding="8,3" FontSize="10.5"
+                                                            MaxWidth="150" Content="{Binding Name}" ToolTip="{Binding Name}"
+                                                            Tag="{Binding IsSelected, Converter={StaticResource BoolOnOff}}"
+                                                            Command="{Binding DataContext.PickSubtaskWorkspaceCommand,
+                                                                      RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{Binding SubtaskNote}" FontSize="11" Margin="2,2,2,4"
+                                                   TextWrapping="Wrap" Foreground="{DynamicResource TextGhostBrush}"/>
+                                        <!-- Virtualised, as in Add Task -->
+                                        <ItemsControl ItemsSource="{Binding SubtaskCandidates}" ui:WheelScroll.Pixels="84" MaxHeight="260" Margin="0,2,0,0"
+                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                                      VirtualizingPanel.ScrollUnit="Pixel">
+                                            <ItemsControl.Template>
+                                                <ControlTemplate TargetType="ItemsControl">
+                                                    <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Auto">
+                                                        <ItemsPresenter/>
+                                                    </ScrollViewer>
+                                                </ControlTemplate>
+                                            </ItemsControl.Template>
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.Resources>
+                                                <DataTemplate DataType="{x:Type vm:LoadMoreRow}">
+                                                    <Button Style="{StaticResource ShowMoreButton}" Content="{Binding Label}" Padding="0,9"
+                                                            ui:LoadWhenSeen.IsEnabled="True"
+                                                            Command="{Binding DataContext.LoadMoreCandidatesCommand,
+                                                                      RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                                </DataTemplate>
+                                                <DataTemplate DataType="{x:Type vm:WorkspaceHeading}">
+                                                    <TextBlock Text="{Binding Label}" FontSize="10" FontWeight="Bold" Margin="9,9,9,3"
+                                                               TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextGhostBrush}"/>
+                                                </DataTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:TaskOption}">
+                                                        <Button Style="{StaticResource MenuRowButton}" Click="SubtaskCandidate_Click"
+                                                                HorizontalAlignment="Stretch">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                                                         Fill="{Binding StatusForeground}"/>
+                                                                <ui:PriorityGlyph Margin="7,0,0,0" VerticalAlignment="Center"
+                                                                                  Priority="{Binding Priority}" Fill="{Binding PriorityForeground}"
+                                                                                  Ghost="{DynamicResource PriorityGhostBrush}"/>
+                                                                <TextBlock Text="{Binding Title}" Margin="7,0,0,0" FontSize="12"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           MaxWidth="{Binding ActualWidth,
+                                                                                      RelativeSource={RelativeSource AncestorType=ItemsControl},
+                                                                                      Converter={StaticResource Minus}, ConverterParameter=60}"
+                                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </DataTemplate>
+                                            </ItemsControl.Resources>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            </Border>
+
+            <!--
+                The sidebar's edge. It sits in the gap between the editor and the
+                sidebar, or on the border between them in Flat, and draws its line
+                only while pointed at or dragged.
+                Dragging left widens the sidebar; a double click puts it back.
+            -->
+            <Thumb Grid.Column="1" Width="12" Margin="{ui:ByLayout Islands='-14,20,0,20', Flat='-6,0,0,0'}" HorizontalAlignment="Left"
+                   Cursor="SizeWE" ToolTip="Drag to resize · double-click to reset"
+                   DragDelta="SidebarEdge_DragDelta" DragCompleted="SidebarEdge_DragCompleted"
+                   MouseDoubleClick="SidebarEdge_DoubleClick"
+                   Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                        <Grid Background="Transparent">
+                            <Border x:Name="line" Width="2" CornerRadius="1" Margin="0,14" HorizontalAlignment="Center"
+                                    Background="{DynamicResource AccentBrush}" Opacity="0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="line" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="line" Property="Opacity" Value="1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Thumb.Template>
+            </Thumb>
+        </Grid>
+    </Grid>
+</UserControl>

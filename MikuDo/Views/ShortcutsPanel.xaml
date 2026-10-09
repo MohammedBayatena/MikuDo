@@ -1,0 +1,395 @@
+<UserControl x:Class="MikuDo.Views.ShortcutsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             xmlns:vm="clr-namespace:MikuDo.ViewModels"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:EqualsToOnOffConverter x:Key="EqOnOff"/>
+
+        <!-- All / Changed / No shortcut: grey behind the one chosen -->
+        <Style x:Key="FilterTab" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Padding" Value="11,6"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="8" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <TextBlock Text="{TemplateBinding Content}" FontSize="{TemplateBinding FontSize}"
+                                       FontWeight="{TemplateBinding FontWeight}" Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource SurfaceSubtleBrush}"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="on">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A small filled button: Save, and Replace in the warning's colour -->
+        <Style x:Key="SmallFillButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Background" Value="{DynamicResource AccentFillBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonPrimaryForegroundBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border CornerRadius="8" Background="{TemplateBinding Background}"/>
+                            <Border x:Name="hover" CornerRadius="8" Opacity="0" Background="{TemplateBinding Foreground}"/>
+                            <TextBlock Text="{TemplateBinding Content}" Margin="{TemplateBinding Padding}" FontSize="{TemplateBinding FontSize}"
+                                       FontWeight="{TemplateBinding FontWeight}" Foreground="{TemplateBinding Foreground}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="hover" Property="Opacity" Value="0.14"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- "Reset to Ctrl T": a link in the text, underlined under the pointer -->
+        <Style x:Key="ResetLink" TargetType="Hyperlink">
+            <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+            <Setter Property="TextDecorations" Value="{x:Null}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="TextDecorations" Value="Underline"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="RowDescription" TargetType="ui:DrawnText">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasProblem}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The row's ground: the accent's tint while it waits for keys, the warning's while it asks -->
+        <Style x:Key="RowGround" TargetType="Border">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="{ui:ByLayout Islands='16,9', Flat='20,9'}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsLast}" Value="True">
+                    <Setter Property="BorderThickness" Value="0"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsConflict}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource WarningTintBrush}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- As it stands: Reset, the keys, the pencil -->
+        <DataTemplate x:Key="KeysIdle">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock FontSize="11.5" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center"
+                           Visibility="{Binding ShowReset, Converter={StaticResource Vis}}">
+                    <Hyperlink Style="{StaticResource ResetLink}" Command="{Binding ResetCommand}"><Run Text="{Binding Command.ResetLabel, Mode=OneWay}"/></Hyperlink>
+                </TextBlock>
+                <ui:KeyCaps Keys="{Binding Command.Caps}"/>
+                <ui:DrawnText Text="No shortcut" FontSize="11.5" VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"
+                              Visibility="{Binding Command.HasChord, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                <Button Style="{StaticResource OutlinedIconButton}" Width="28" Height="28" Margin="10,0,0,0"
+                        ToolTip="Change the shortcut" Command="{Binding EditCommand}"
+                        Visibility="{Binding IsIdle, Converter={StaticResource Vis}}">
+                    <ui:Icon Data="{StaticResource IconPencil}" Size="13" StrokeThickness="2"
+                             Stroke="{DynamicResource TextFaintBrush}"/>
+                </Button>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Waiting for keys: what has been pressed so far, then Save or Cancel -->
+        <DataTemplate x:Key="KeysRecording">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Grid>
+                    <Border Margin="-3" CornerRadius="10" BorderThickness="3" Opacity="0.14" IsHitTestVisible="False"
+                            BorderBrush="{DynamicResource FocusRingBrush}"/>
+                    <Border Height="30" Padding="10,0" CornerRadius="8" BorderThickness="1.5" MinWidth="120"
+                            Focusable="True" FocusVisualStyle="{x:Null}"
+                            Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                            Loaded="Capture_Loaded" PreviewKeyDown="Capture_PreviewKeyDown" PreviewKeyUp="Capture_PreviewKeyUp"
+                            LostKeyboardFocus="Capture_LostKeyboardFocus">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <ui:KeyCaps Keys="{Binding CapturedCaps}" Margin="0,0,8,0"
+                                        Visibility="{Binding HasCaptured, Converter={StaticResource Vis}}"/>
+                            <TextBlock Text="then Enter" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFaintBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+                <Button Style="{StaticResource SmallFillButton}" Content="Save" Margin="10,0,0,0" Command="{Binding SaveCommand}"/>
+                <Button Style="{StaticResource GhostButton}" Content="Cancel" Padding="11,6" Margin="10,0,0,0"
+                        Command="{Binding CancelCommand}"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Keys another command has: give them to this one, or leave things be -->
+        <DataTemplate x:Key="ConflictBox">
+            <Border Margin="{ui:ByLayout Islands='16,-2,16,12', Flat='20,-2,20,12'}" Padding="12,9" CornerRadius="9" BorderThickness="1"
+                    Background="{DynamicResource WarningSoftBrush}" BorderBrush="{DynamicResource WarningBorderBrush}">
+                <DockPanel>
+                    <ui:Icon DockPanel.Dock="Left" Data="{StaticResource IconWarning}" Size="14" StrokeThickness="2"
+                             Stroke="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <Button Style="{StaticResource SmallFillButton}" Content="Replace" Padding="11,6"
+                                Background="{DynamicResource WarningFillBrush}" Foreground="{DynamicResource OnWarningBrush}"
+                                Command="{Binding ReplaceCommand}"/>
+                        <Button Style="{StaticResource GhostButton}" Content="Cancel" Padding="10,5" Margin="10,0,0,0"
+                                Command="{Binding DropConflictCommand}"/>
+                    </StackPanel>
+                    <TextBlock TextWrapping="Wrap" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                               Foreground="{DynamicResource WarningBrush}">
+                        <InlineUIContainer BaselineAlignment="Center"><ui:KeyCaps Keys="{Binding ConflictCaps}"/></InlineUIContainer><Run
+                            Text=" is already used by "/><Bold><Run Text="{Binding ConflictName, Mode=OneWay}"/></Bold><Run
+                            Text="{Binding ConflictBreak, Mode=OneWay}"/><Run Text="Give it to "/><Run
+                            Text="{Binding Name, Mode=OneWay}"/><Run Text=" and leave "/><Run
+                            Text="{Binding ConflictName, Mode=OneWay}"/><Run Text=" without one?"/>
+                    </TextBlock>
+                </DockPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- The right side holds the recording parts only while the row waits -->
+        <Style x:Key="KeysSlot" TargetType="ContentControl">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="ContentTemplate" Value="{StaticResource KeysIdle}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                    <Setter Property="ContentTemplate" Value="{StaticResource KeysRecording}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Empty, and building nothing, until the row asks about keys another command has -->
+        <Style x:Key="ConflictSlot" TargetType="ContentControl">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Content" Value="{x:Null}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsConflict}" Value="True">
+                    <Setter Property="Content" Value="{Binding}"/>
+                    <Setter Property="ContentTemplate" Value="{StaticResource ConflictBox}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The section's folding row: a soft ground under the pointer; a line under it while open -->
+        <Style x:Key="FoldRow" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="Transparent" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0"
+                                Padding="{ui:ByLayout Islands='16,13', Flat='20,14'}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                <Setter TargetName="bd" Property="BorderThickness" Value="0,0,0,1"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The open section: search, filters, Reset all, and every command by group -->
+        <DataTemplate x:Key="ShortcutsBody">
+            <StackPanel>
+                <!-- Search, which rows to show, and Reset all -->
+                <Border Padding="{ui:ByLayout Islands='16,12', Flat='20,12'}" BorderThickness="0,0,0,1"
+                        BorderBrush="{DynamicResource DividerBrush}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="220"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Height="32" Padding="10,0" CornerRadius="9" BorderThickness="1"
+                                BorderBrush="{DynamicResource BorderBrush}" Background="{DynamicResource SurfaceBrush}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ui:Icon Data="{StaticResource IconSearch}" Size="13" StrokeThickness="2" VerticalAlignment="Center"
+                                         Stroke="{DynamicResource TextFaintBrush}"/>
+                                <TextBox Grid.Column="1" Margin="8,0,0,0" Padding="0" BorderThickness="0"
+                                         Background="Transparent" Style="{StaticResource InputBox}" FontSize="12"
+                                         ui:Placeholder.Text="Search by name or press keys to find a shortcut"
+                                         Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
+                                         PreviewKeyDown="SearchBox_PreviewKeyDown"/>
+                            </Grid>
+                        </Border>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <Button Style="{StaticResource FilterTab}" Content="All" Margin="0"
+                                    Command="{Binding SetFilterCommand}" CommandParameter="All"
+                                    Tag="{Binding Filter, Converter={StaticResource EqOnOff}, ConverterParameter=All}"/>
+                            <Button Style="{StaticResource FilterTab}" Content="{Binding ChangedLabel}"
+                                    Command="{Binding SetFilterCommand}" CommandParameter="Changed"
+                                    Tag="{Binding Filter, Converter={StaticResource EqOnOff}, ConverterParameter=Changed}"/>
+                            <Button Style="{StaticResource FilterTab}" Content="{Binding NoneLabel}"
+                                    Command="{Binding SetFilterCommand}" CommandParameter="None"
+                                    Tag="{Binding Filter, Converter={StaticResource EqOnOff}, ConverterParameter=None}"/>
+                        </StackPanel>
+                        <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="Reset all" Padding="12,7" Margin="10,0,0,0"
+                                VerticalAlignment="Center" Foreground="{DynamicResource DangerBrush}"
+                                IsEnabled="{Binding HasChanges}" Command="{Binding ResetAllCommand}"/>
+                    </Grid>
+                </Border>
+
+                <ItemsControl x:Name="Rows" ItemsSource="{Binding Items}" Focusable="False" IsTabStop="False"/>
+
+                <TextBlock Text="No command matches. Try other words, or press the keys themselves." Margin="{ui:ByLayout Islands='16,14', Flat='20,14'}"
+                           FontSize="12" Foreground="{DynamicResource TextFaintBrush}"
+                           Visibility="{Binding IsEmpty, Converter={StaticResource Vis}}"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Empty, and building nothing, while the section is folded -->
+        <Style x:Key="FoldedBody" TargetType="ContentControl">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Content" Value="{x:Null}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                    <Setter Property="Content" Value="{Binding}"/>
+                    <Setter Property="ContentTemplate" Value="{StaticResource ShortcutsBody}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <DataTemplate DataType="{x:Type vm:ShortcutGroup}">
+            <Border Padding="{ui:ByLayout Islands='16,9', Flat='20,9'}" BorderThickness="0,0,0,1"
+                    Background="{DynamicResource SurfaceMutedBrush}" BorderBrush="{DynamicResource DividerBrush}">
+                <ui:DrawnText Text="{Binding Title}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextFaintBrush}"/>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:ShortcutRow}">
+            <StackPanel>
+                <Border Style="{StaticResource RowGround}">
+                    <DockPanel>
+                        <ContentControl DockPanel.Dock="Right" Style="{StaticResource KeysSlot}" Content="{Binding}"/>
+                        <StackPanel Margin="0,0,14,0" VerticalAlignment="Center">
+                            <ui:LeadTrimPanel HorizontalAlignment="Left">
+                                <ui:DrawnText Text="{Binding Name}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <Border CornerRadius="99" Padding="8,1" Margin="8,0,0,0" Background="{DynamicResource AccentSoftBrush}"
+                                        Visibility="{Binding Command.IsChanged, Converter={StaticResource Vis}}">
+                                    <ui:DrawnText Text="Changed" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AccentDarkBrush}"/>
+                                </Border>
+                            </ui:LeadTrimPanel>
+                            <ui:DrawnText Text="{Binding Description}" Style="{StaticResource RowDescription}"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <ContentControl Style="{StaticResource ConflictSlot}"/>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <Border Style="{StaticResource SectionStrip}">
+            <StackPanel Orientation="Horizontal" Margin="{ui:ByLayout Islands='2,20,2,8', Flat=0}">
+                <TextBlock Text="KEYBOARD SHORTCUTS" Style="{StaticResource SectionLabel}" FontWeight="Bold" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Summary}" FontSize="11.5" Margin="10,0,0,0" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFaintBrush}"/>
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+            <StackPanel>
+                <!-- Folded: one row saying what is inside; it opens the list and folds it away again -->
+                <Button Style="{StaticResource FoldRow}" Command="{Binding ToggleExpandedCommand}">
+                    <DockPanel>
+                        <ui:Icon DockPanel.Dock="Left" Data="{StaticResource IconKeyboard}" Size="16" StrokeThickness="1.9"
+                                 VerticalAlignment="Center" Margin="0,0,12,0" Stroke="{DynamicResource TextMutedBrush}"/>
+                        <Border DockPanel.Dock="Right" Margin="14,0,0,0" Padding="12,7" CornerRadius="9" BorderThickness="1"
+                                VerticalAlignment="Center"
+                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:DrawnText Text="{Binding FoldLabel}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                                              Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <ui:Icon Data="{StaticResource IconChevronDown}" Size="11" StrokeThickness="2.4" Margin="7,0,0,0"
+                                         VerticalAlignment="Center" Stroke="{DynamicResource TextMutedBrush}"
+                                         RenderTransformOrigin="0.5,0.5">
+                                    <ui:Icon.Style>
+                                        <Style TargetType="ui:Icon">
+                                            <Setter Property="RenderTransform">
+                                                <Setter.Value>
+                                                    <RotateTransform Angle="0"/>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                    <Setter Property="RenderTransform">
+                                                        <Setter.Value>
+                                                            <RotateTransform Angle="180"/>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ui:Icon.Style>
+                                </ui:Icon>
+                            </StackPanel>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:DrawnText Text="Keyboard shortcuts" FontSize="13" FontWeight="Bold"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <Border CornerRadius="99" Padding="8,1" Margin="8,0,0,0" VerticalAlignment="Center"
+                                        Background="{DynamicResource AccentSoftBrush}"
+                                        Visibility="{Binding HasChanges, Converter={StaticResource Vis}}">
+                                    <ui:DrawnText Text="{Binding ChangedNote}" FontSize="10.5" FontWeight="Bold"
+                                                  Foreground="{DynamicResource AccentDarkBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <ui:DrawnText Text="Change the keys any command runs on, or find a command by pressing its keys."
+                                          FontSize="11.5" Margin="0,3,0,0" HorizontalAlignment="Left"
+                                          Foreground="{DynamicResource TextSubtleBrush}"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Button>
+
+                <!-- Opened: built only then, so a folded section costs the page nothing -->
+                <ContentControl Style="{StaticResource FoldedBody}"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

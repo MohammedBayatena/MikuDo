@@ -1,0 +1,283 @@
+<UserControl x:Class="MikuDo.Views.MakeTasksDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:BoolToOnOffConverter x:Key="BoolOnOff"/>
+
+        <!-- One of the two ways to make tasks: a card with a radio dot, filled when chosen -->
+        <Style x:Key="ModeCard" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="10" BorderThickness="1" Padding="12"
+                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                            <DockPanel>
+                                <Grid DockPanel.Dock="Left" Width="16" Height="16" Margin="0,1,10,0" VerticalAlignment="Top">
+                                    <Ellipse x:Name="ring" Stroke="{DynamicResource TextGhostBrush}" StrokeThickness="1.5"/>
+                                    <Ellipse x:Name="dot" Width="8" Height="8" Fill="{DynamicResource AccentFillBrush}" Visibility="Collapsed"/>
+                                </Grid>
+                                <ContentPresenter/>
+                            </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="on">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1.5"/>
+                                <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource AccentFillBrush}"/>
+                                <Setter TargetName="dot" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A row that ticks: the box, then whatever the row says, the whole row clickable -->
+        <Style x:Key="RowCheck" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <DockPanel Background="Transparent">
+                            <Border x:Name="bx" DockPanel.Dock="Left" Width="15" Height="15" CornerRadius="5" VerticalAlignment="Center"
+                                    Background="{DynamicResource SurfaceBrush}" RenderTransformOrigin="0.5,0.5"
+                                    BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1.8">
+                                <Border.RenderTransform>
+                                    <ScaleTransform/>
+                                </Border.RenderTransform>
+                                <Path x:Name="tick" Data="M2.5,6.5 L5.5,9.5 L11,3.5" Stroke="Transparent" StrokeThickness="2.1"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ContentPresenter Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bx" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="bx" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="tick" Property="Stroke" Value="White"/>
+                                <Trigger.EnterActions><BeginStoryboard Storyboard="{StaticResource TickIn}"/></Trigger.EnterActions>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bx" Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A field that shows its value and opens a menu of the others -->
+        <Style x:Key="SelectField" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="9" BorderThickness="1" Padding="10,8"
+                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                            <DockPanel>
+                                <ui:Icon DockPanel.Dock="Right" Data="{StaticResource IconCaretDown}" Size="11" StrokeThickness="2.4"
+                                         VerticalAlignment="Center" Stroke="{DynamicResource TextFaintBrush}"/>
+                                <TextBlock Text="{TemplateBinding Content}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Width="720" MaxHeight="760" RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+            <ScaleTransform/>
+        </Grid.RenderTransform>
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsVisible, RelativeSource={RelativeSource Self}}" Value="True">
+                        <DataTrigger.EnterActions>
+                            <BeginStoryboard Storyboard="{StaticResource DialogIn}"/>
+                        </DataTrigger.EnterActions>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
+        <ui:SoftShadow CornerRadius="14" BlurRadius="60" ShadowDepth="24" ShadowOpacity="0.28"
+                       Color="{DynamicResource ShadowColor}"/>
+        <Border CornerRadius="14" Background="{DynamicResource SurfaceBrush}" ui:RoundedClip.Radius="14"
+                TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
+            <DockPanel>
+
+                <!-- Header -->
+                <Border DockPanel.Dock="Top" Padding="18,16" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Left" Width="32" Height="32" CornerRadius="8" Background="{DynamicResource AccentSoftBrush}">
+                            <ui:Icon Data="{StaticResource IconCheck}" Size="16" StrokeThickness="2.4" Stroke="{DynamicResource AccentDarkBrush}"/>
+                        </Border>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="30" Height="30" ToolTip="Close (Esc)"
+                                Command="{Binding CloseCommand}">
+                            <ui:Icon Data="{StaticResource IconClose}" Size="15" StrokeThickness="2" Stroke="{DynamicResource TextFaintBrush}"/>
+                        </Button>
+                        <StackPanel Margin="12,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="ExtraBold" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding Subtitle}" Margin="0,2,0,0" FontSize="12" Foreground="{DynamicResource TextFaintBrush}"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- Footer -->
+                <Border DockPanel.Dock="Bottom" Padding="18,14" Background="{DynamicResource SurfaceMutedBrush}"
+                        BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Style="{StaticResource GhostButton}" Padding="14,9" Content="Cancel" FontSize="12"
+                                    Command="{Binding CloseCommand}"/>
+                            <Button Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Padding="16,9"
+                                    IsEnabled="{Binding CanCreate}" Command="{Binding CreateTasksCommand}">
+                                <TextBlock Text="{Binding CreateLabel}" FontSize="12" FontWeight="Bold"
+                                           Foreground="{DynamicResource ButtonPrimaryForegroundBrush}"/>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                    </DockPanel>
+                </Border>
+
+                <!-- Link back -->
+                <Border DockPanel.Dock="Bottom" Padding="18,12" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0">
+                    <CheckBox Style="{StaticResource RowCheck}" IsChecked="{Binding LinkBack}">
+                        <TextBlock FontSize="12.5" Foreground="{DynamicResource TextSecondaryBrush}">
+                            <Run Text="Each task links back to"/>
+                            <Run Text="{Binding NoteName, Mode=OneWay}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                    </CheckBox>
+                </Border>
+
+                <!-- Choices -->
+                <Border DockPanel.Dock="Top" Padding="18,16" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                    <StackPanel>
+                        <UniformGrid Columns="2">
+                            <Button Style="{StaticResource ModeCard}" Margin="0,0,4,0" Command="{Binding SetModeCommand}" CommandParameter="items"
+                                    Tag="{Binding IsPerItem, Converter={StaticResource BoolOnOff}}" IsEnabled="{Binding HasRows}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding PerItemLabel}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Nested items become subtasks" Margin="0,2,0,0" FontSize="11.5" Foreground="{DynamicResource TextFaintBrush}"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource ModeCard}" Margin="4,0,0,0" Command="{Binding SetModeCommand}" CommandParameter="whole"
+                                    Tag="{Binding IsWhole, Converter={StaticResource BoolOnOff}}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding WholeLabel}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Its text becomes the description" Margin="0,2,0,0" FontSize="11.5" Foreground="{DynamicResource TextFaintBrush}"/>
+                                </StackPanel>
+                            </Button>
+                        </UniformGrid>
+                        <Grid Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.3*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1.15*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                <TextBlock Text="ADD TO" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" Foreground="{DynamicResource TextFaintBrush}"/>
+                                <Button x:Name="WorkspaceField" Style="{StaticResource SelectField}" Content="{Binding Workspace.Name}" Click="Workspace_Click"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                <TextBlock Text="LIST" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" Foreground="{DynamicResource TextFaintBrush}"/>
+                                <Button x:Name="ListField" Style="{StaticResource SelectField}" Content="{Binding List}" Click="List_Click"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="LABEL" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" Foreground="{DynamicResource TextFaintBrush}"/>
+                                <Button x:Name="LabelField" Style="{StaticResource SelectField}" Content="{Binding Label}" Click="Label_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Grid>
+                    <!-- A task per item -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="360"
+                                  Visibility="{Binding IsPerItem, Converter={StaticResource Vis}}">
+                        <ItemsControl ItemsSource="{Binding Rows}" Margin="0,6">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding CaptionUpper}" Margin="18,10,18,4" FontSize="10.5" FontWeight="Bold"
+                                                   Foreground="{DynamicResource TextFaintBrush}"
+                                                   Visibility="{Binding HasCaption, Converter={StaticResource Vis}}"/>
+                                        <CheckBox Style="{StaticResource RowCheck}" Margin="18,7" IsChecked="{Binding IsSelected}">
+                                            <DockPanel LastChildFill="True">
+                                                <Border DockPanel.Dock="Right" Margin="12,0,0,0" CornerRadius="6" Padding="8,2"
+                                                        Background="{DynamicResource LabelGreenSoftBrush}"
+                                                        Visibility="{Binding Done, Converter={StaticResource Vis}}">
+                                                    <TextBlock Text="Ticked in the note · lands in Done" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource LabelGreenBrush}"/>
+                                                </Border>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding SubtaskLabel}" Margin="12,0,0,0" FontSize="11"
+                                                           FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"
+                                                           Visibility="{Binding HasSubtasks, Converter={StaticResource Vis}}"/>
+                                                <TextBlock Text="{Binding Text}" FontSize="13.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Done}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                                    <Setter Property="FontWeight" Value="Normal"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </DockPanel>
+                                        </CheckBox>
+                                        <ItemsControl ItemsSource="{Binding Subtasks}" Margin="46,0,18,4">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                                                        <ui:Icon Data="M6,4 v10 a4,4 0 0 0 4,4 h10" Size="12" StrokeThickness="2"
+                                                                 VerticalAlignment="Center" Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                                                        <TextBlock Text="{Binding}" Margin="8,0,0,0" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- One task -->
+                    <StackPanel Margin="18,16" Visibility="{Binding IsWhole, Converter={StaticResource Vis}}">
+                        <TextBlock Text="TITLE" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" Foreground="{DynamicResource TextFaintBrush}"/>
+                        <TextBox Style="{StaticResource InputBox}" FontSize="13.5" FontWeight="SemiBold" Padding="11,8"
+                                 Text="{Binding WholeTitle, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Margin="0,8,0,0" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextFaintBrush}"
+                                   Text="The rest becomes the task's description, as written."/>
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

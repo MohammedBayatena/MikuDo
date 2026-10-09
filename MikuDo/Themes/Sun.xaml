@@ -1,0 +1,235 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    mc:Ignorable="po">
+
+    <!-- Sun: a light theme. Written by tools/theme_studio.py, which checked every
+         text and control colour below against WCAG contrast before writing it. -->
+    <sys:Boolean x:Key="ThemeIsDark">False</sys:Boolean>
+    <sys:Double x:Key="DisabledOpacity">0.5</sys:Double>
+
+    <!-- ═══ Tier 1: primitive colours. Nothing outside this file names them. ═══ -->
+    <Color x:Key="P.Amber.525">#9c5600</Color>
+    <Color x:Key="P.Amber.542">#a35a00</Color>
+    <Color x:Key="P.Amber.642">#cf7102</Color>
+    <Color x:Key="P.Amber.829">#fbb86a</Color>
+    <Color x:Key="P.Blue.495">#1f55d0</Color>
+    <Color x:Key="P.Blue.546">#2563eb</Color>
+    <Color x:Key="P.Blue.941">#e2ecff</Color>
+    <Color x:Key="P.Blue.947">#e4eeff</Color>
+    <Color x:Key="P.Cyan.487">#0e6a83</Color>
+    <Color x:Key="P.Green.509">#4a7410</Color>
+    <Color x:Key="P.Green.527">#15803d</Color>
+    <Color x:Key="P.Magenta.591">#c026d3</Color>
+    <Color x:Key="P.Magenta.875">#dccdfa</Color>
+    <Color x:Key="P.Magenta.931">#ece3ff</Color>
+    <Color x:Key="P.Magenta.941">#efe7ff</Color>
+    <Color x:Key="P.Magenta.949">#f1eaff</Color>
+    <Color x:Key="P.Neutral.1000.A14">#24ffffff</Color>
+    <Color x:Key="P.Neutral.1000.A30">#4dffffff</Color>
+    <Color x:Key="P.Neutral.1000.A65">#a6ffffff</Color>
+    <Color x:Key="P.Neutral.1000.A72">#b8ffffff</Color>
+    <Color x:Key="P.Neutral.188.A82">#d110131c</Color>
+    <Color x:Key="P.Neutral.240">#1c1f27</Color>
+    <Color x:Key="P.Neutral.640">#888c95</Color>
+    <Color x:Key="P.Neutral.642">#888d96</Color>
+    <Color x:Key="P.Neutral.642.a">#878d98</Color>
+    <Color x:Key="P.Neutral.643">#888d97</Color>
+    <Color x:Key="P.Neutral.643.a">#888d98</Color>
+    <Color x:Key="P.Neutral.643.b">#878d9a</Color>
+    <Color x:Key="P.Neutral.773">#b2b5bc</Color>
+    <Color x:Key="P.Neutral.882">#d6d8dd</Color>
+    <Color x:Key="P.Neutral.925">#e3e6ed</Color>
+    <Color x:Key="P.Neutral.934">#e7e9ee</Color>
+    <Color x:Key="P.Neutral.935">#e7e9f0</Color>
+    <Color x:Key="P.Neutral.940">#e9ebf1</Color>
+    <Color x:Key="P.Neutral.945">#e9edf3</Color>
+    <Color x:Key="P.Neutral.949">#eceef3</Color>
+    <Color x:Key="P.Neutral.954">#f1edfd</Color>
+    <Color x:Key="P.Neutral.956">#eef3e4</Color>
+    <Color x:Key="P.Neutral.958">#e3f5f8</Color>
+    <Color x:Key="P.Neutral.959">#f2effd</Color>
+    <Color x:Key="P.Neutral.960">#fbedf7</Color>
+    <Color x:Key="P.Neutral.961">#f4efff</Color>
+    <Color x:Key="P.Neutral.961.a">#fdeef0</Color>
+    <Color x:Key="P.Neutral.962">#f1f2f6</Color>
+    <Color x:Key="P.Neutral.964">#f1f3f7</Color>
+    <Color x:Key="P.Neutral.964.a">#e7f8ef</Color>
+    <Color x:Key="P.Neutral.970">#fff3e4</Color>
+    <Color x:Key="P.Neutral.971">#f5f5f7</Color>
+    <Color x:Key="P.Neutral.974">#f5f6fa</Color>
+    <Color x:Key="P.Neutral.977">#f8f6ff</Color>
+    <Color x:Key="P.Neutral.983">#f9f9fc</Color>
+    <Color x:Key="P.Neutral.987">#fffaf2</Color>
+    <Color x:Key="P.Neutral.987.a">#fbfaff</Color>
+    <Color x:Key="P.Neutral.991">#fffbfb</Color>
+    <Color x:Key="P.Neutral.993">#fdfcff</Color>
+    <Color x:Key="P.Neutral.994">#fdfdfe</Color>
+    <Color x:Key="P.Neutral.994.a">#fbfefc</Color>
+    <Color x:Key="P.Orange.505">#b91c1c</Color>
+    <Color x:Key="P.Orange.588">#d93a30</Color>
+    <Color x:Key="P.Pink.503">#9c2c93</Color>
+    <Color x:Key="P.Red.529">#be2a3f</Color>
+    <Color x:Key="P.Red.578">#d3364a</Color>
+    <Color x:Key="P.Red.894">#f3d3d6</Color>
+    <Color x:Key="P.Teal.501">#067650</Color>
+    <Color x:Key="P.Teal.514">#0f7a53</Color>
+    <Color x:Key="P.Violet.234">#181d2d</Color>
+    <Color x:Key="P.Violet.234.A42">#6b181d2d</Color>
+    <Color x:Key="P.Violet.416">#454c5b</Color>
+    <Color x:Key="P.Violet.466">#6527c9</Color>
+    <Color x:Key="P.Violet.475">#565c6b</Color>
+    <Color x:Key="P.Violet.478">#565d6c</Color>
+    <Color x:Key="P.Violet.479">#575d6c</Color>
+    <Color x:Key="P.Violet.491">#6d28d9</Color>
+    <Color x:Key="P.Violet.499">#5c6372</Color>
+    <Color x:Key="P.Violet.541">#7c3aed</Color>
+    <Color x:Key="P.Violet.566">#7b6aa8</Color>
+    <Color x:Key="P.Violet.606">#8b5cf6</Color>
+    <Color x:Key="P.Violet.647">#9182c6</Color>
+    <Color x:Key="P.Violet.651">#9481cd</Color>
+    <Color x:Key="P.Violet.654">#977be2</Color>
+    <Color x:Key="P.Violet.797">#c4aefa</Color>
+    <Color x:Key="P.Yellow.891">#f3d7a8</Color>
+    <Color x:Key="P.Yellow.924">#fde68a</Color>
+    <Color x:Key="P.Yellow.960">#fdf1d4</Color>
+
+    <!-- ═══ Tier 2: semantic tokens, what a colour is for ═══ -->
+    <SolidColorBrush x:Key="CanvasBrush" po:Freeze="True" Color="{StaticResource P.Neutral.945}"/>
+    <SolidColorBrush x:Key="SurfaceBrush" po:Freeze="True" Color="{StaticResource P.Neutral.994}"/>
+    <SolidColorBrush x:Key="SurfaceMutedBrush" po:Freeze="True" Color="{StaticResource P.Neutral.983}"/>
+    <SolidColorBrush x:Key="SurfaceSubtleBrush" po:Freeze="True" Color="{StaticResource P.Neutral.974}"/>
+    <SolidColorBrush x:Key="HoverBrush" po:Freeze="True" Color="{StaticResource P.Neutral.934}"/>
+    <SolidColorBrush x:Key="DividerBrush" po:Freeze="True" Color="{StaticResource P.Neutral.949}"/>
+    <SolidColorBrush x:Key="DividerSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.962}"/>
+    <SolidColorBrush x:Key="BorderBrush" po:Freeze="True" Color="{StaticResource P.Neutral.925}"/>
+    <SolidColorBrush x:Key="BorderSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.940}"/>
+    <SolidColorBrush x:Key="BorderFaintBrush" po:Freeze="True" Color="{StaticResource P.Neutral.935}"/>
+    <SolidColorBrush x:Key="CheckBorderBrush" po:Freeze="True" Color="{StaticResource P.Neutral.642}"/>
+    <SolidColorBrush x:Key="DashBorderBrush" po:Freeze="True" Color="{StaticResource P.Neutral.640}"/>
+    <SolidColorBrush x:Key="InputBorderBrush" po:Freeze="True" Color="{StaticResource P.Neutral.643}"/>
+    <SolidColorBrush x:Key="TextPrimaryBrush" po:Freeze="True" Color="{StaticResource P.Neutral.240}"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" po:Freeze="True" Color="{StaticResource P.Violet.416}"/>
+    <SolidColorBrush x:Key="TextMutedBrush" po:Freeze="True" Color="{StaticResource P.Violet.478}"/>
+    <SolidColorBrush x:Key="TextSubtleBrush" po:Freeze="True" Color="{StaticResource P.Violet.479}"/>
+    <SolidColorBrush x:Key="TextFaintBrush" po:Freeze="True" Color="{StaticResource P.Violet.475}"/>
+    <SolidColorBrush x:Key="TextGhostBrush" po:Freeze="True" Color="{StaticResource P.Violet.478}"/>
+    <SolidColorBrush x:Key="TextGhostSoftBrush" po:Freeze="True" Color="{StaticResource P.Violet.478}"/>
+    <SolidColorBrush x:Key="GripBrush" po:Freeze="True" Color="{StaticResource P.Neutral.643.a}"/>
+    <SolidColorBrush x:Key="ChevronBrush" po:Freeze="True" Color="{StaticResource P.Neutral.642.a}"/>
+    <SolidColorBrush x:Key="AccentBrush" po:Freeze="True" Color="{StaticResource P.Violet.541}"/>
+    <SolidColorBrush x:Key="AccentFillBrush" po:Freeze="True" Color="{StaticResource P.Violet.541}"/>
+    <SolidColorBrush x:Key="AccentDarkBrush" po:Freeze="True" Color="{StaticResource P.Violet.466}"/>
+    <SolidColorBrush x:Key="AccentLightBrush" po:Freeze="True" Color="{StaticResource P.Violet.606}"/>
+    <SolidColorBrush x:Key="AccentSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.961}"/>
+    <SolidColorBrush x:Key="AccentSoftAltBrush" po:Freeze="True" Color="{StaticResource P.Neutral.954}"/>
+    <SolidColorBrush x:Key="AccentTintBrush" po:Freeze="True" Color="{StaticResource P.Magenta.931}"/>
+    <SolidColorBrush x:Key="AccentBorderBrush" po:Freeze="True" Color="{StaticResource P.Magenta.875}"/>
+    <SolidColorBrush x:Key="AccentBorderStrongBrush" po:Freeze="True" Color="{StaticResource P.Violet.797}"/>
+    <SolidColorBrush x:Key="AccentBulletBrush" po:Freeze="True" Color="{StaticResource P.Violet.654}"/>
+    <SolidColorBrush x:Key="AccentTrackBrush" po:Freeze="True" Color="{StaticResource P.Neutral.643.b}"/>
+    <SolidColorBrush x:Key="BadgeActiveBrush" po:Freeze="True" Color="{StaticResource P.Violet.541}"/>
+    <SolidColorBrush x:Key="BadgeIdleBrush" po:Freeze="True" Color="{StaticResource P.Violet.566}"/>
+    <SolidColorBrush x:Key="ChartTrackBrush" po:Freeze="True" Color="{StaticResource P.Violet.651}"/>
+    <SolidColorBrush x:Key="WaveIdleBrush" po:Freeze="True" Color="{StaticResource P.Violet.647}"/>
+    <SolidColorBrush x:Key="OnAccentBrush" po:Freeze="True" Color="{StaticResource P.Neutral.993}"/>
+    <SolidColorBrush x:Key="OnSuccessBrush" po:Freeze="True" Color="{StaticResource P.Neutral.994.a}"/>
+    <SolidColorBrush x:Key="OnDangerBrush" po:Freeze="True" Color="{StaticResource P.Neutral.991}"/>
+    <SolidColorBrush x:Key="DangerBrush" po:Freeze="True" Color="{StaticResource P.Orange.505}"/>
+    <SolidColorBrush x:Key="DangerAccentBrush" po:Freeze="True" Color="{StaticResource P.Red.578}"/>
+    <SolidColorBrush x:Key="DangerBorderBrush" po:Freeze="True" Color="{StaticResource P.Red.894}"/>
+    <SolidColorBrush x:Key="DangerSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.961.a}"/>
+    <SolidColorBrush x:Key="WarningBrush" po:Freeze="True" Color="{StaticResource P.Amber.525}"/>
+    <SolidColorBrush x:Key="WarningSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.970}"/>
+    <SolidColorBrush x:Key="WarningBorderBrush" po:Freeze="True" Color="{StaticResource P.Yellow.891}"/>
+    <SolidColorBrush x:Key="WarningTintBrush" po:Freeze="True" Color="{StaticResource P.Neutral.987}"/>
+    <SolidColorBrush x:Key="WarningFillBrush" po:Freeze="True" Color="{StaticResource P.Amber.525}"/>
+    <SolidColorBrush x:Key="OnWarningBrush" po:Freeze="True" Color="{StaticResource P.Neutral.993}"/>
+    <SolidColorBrush x:Key="PriorityGhostBrush" po:Freeze="True" Color="{StaticResource P.Neutral.773}"/>
+    <SolidColorBrush x:Key="FindMatchBrush" po:Freeze="True" Color="{StaticResource P.Yellow.924}"/>
+    <SolidColorBrush x:Key="FindActiveBrush" po:Freeze="True" Color="{StaticResource P.Amber.829}"/>
+    <SolidColorBrush x:Key="SuccessBrush" po:Freeze="True" Color="{StaticResource P.Green.527}"/>
+    <SolidColorBrush x:Key="CodeBgBrush" po:Freeze="True" Color="{StaticResource P.Neutral.959}"/>
+    <SolidColorBrush x:Key="QuoteBgBrush" po:Freeze="True" Color="{StaticResource P.Neutral.977}"/>
+    <SolidColorBrush x:Key="InlineAddBgBrush" po:Freeze="True" Color="{StaticResource P.Neutral.987.a}"/>
+    <SolidColorBrush x:Key="FocusRingBrush" po:Freeze="True" Color="{StaticResource P.Violet.541}"/>
+    <SolidColorBrush x:Key="FocusRingInnerBrush" po:Freeze="True" Color="{StaticResource P.Neutral.994}"/>
+    <SolidColorBrush x:Key="PressedBrush" po:Freeze="True" Color="{StaticResource P.Neutral.882}"/>
+    <SolidColorBrush x:Key="ScrimBrush" po:Freeze="True" Color="{StaticResource P.Violet.234.A42}"/>
+    <SolidColorBrush x:Key="GalleryScrimBrush" po:Freeze="True" Color="{StaticResource P.Neutral.188.A82}"/>
+    <SolidColorBrush x:Key="StatusTodoBrush" po:Freeze="True" Color="{StaticResource P.Amber.525}"/>
+    <SolidColorBrush x:Key="StatusTodoDotBrush" po:Freeze="True" Color="{StaticResource P.Amber.642}"/>
+    <SolidColorBrush x:Key="StatusTodoHaloBrush" po:Freeze="True" Color="{StaticResource P.Yellow.960}"/>
+    <SolidColorBrush x:Key="StatusDoingBrush" po:Freeze="True" Color="{StaticResource P.Blue.495}"/>
+    <SolidColorBrush x:Key="StatusDoingDotBrush" po:Freeze="True" Color="{StaticResource P.Blue.546}"/>
+    <SolidColorBrush x:Key="StatusDoingHaloBrush" po:Freeze="True" Color="{StaticResource P.Blue.941}"/>
+    <SolidColorBrush x:Key="StatusDoneBrush" po:Freeze="True" Color="{StaticResource P.Teal.501}"/>
+    <SolidColorBrush x:Key="StatusDoneDotBrush" po:Freeze="True" Color="{StaticResource P.Violet.541}"/>
+    <SolidColorBrush x:Key="StatusDoneHaloBrush" po:Freeze="True" Color="{StaticResource P.Magenta.941}"/>
+    <SolidColorBrush x:Key="PriorityHighBrush" po:Freeze="True" Color="{StaticResource P.Red.529}"/>
+    <SolidColorBrush x:Key="PriorityMediumBrush" po:Freeze="True" Color="{StaticResource P.Amber.525}"/>
+    <SolidColorBrush x:Key="PriorityLowBrush" po:Freeze="True" Color="{StaticResource P.Blue.495}"/>
+    <SolidColorBrush x:Key="PriorityNoneBrush" po:Freeze="True" Color="{StaticResource P.Violet.499}"/>
+    <SolidColorBrush x:Key="PriorityHighSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.961.a}"/>
+    <SolidColorBrush x:Key="PriorityMediumSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.970}"/>
+    <SolidColorBrush x:Key="PriorityLowSoftBrush" po:Freeze="True" Color="{StaticResource P.Blue.947}"/>
+    <SolidColorBrush x:Key="PriorityNoneSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.964}"/>
+    <SolidColorBrush x:Key="LabelGreenBrush" po:Freeze="True" Color="{StaticResource P.Teal.514}"/>
+    <SolidColorBrush x:Key="LabelRedBrush" po:Freeze="True" Color="{StaticResource P.Red.529}"/>
+    <SolidColorBrush x:Key="LabelAmberBrush" po:Freeze="True" Color="{StaticResource P.Amber.542}"/>
+    <SolidColorBrush x:Key="LabelBlueBrush" po:Freeze="True" Color="{StaticResource P.Blue.495}"/>
+    <SolidColorBrush x:Key="LabelVioletBrush" po:Freeze="True" Color="{StaticResource P.Violet.491}"/>
+    <SolidColorBrush x:Key="LabelCyanBrush" po:Freeze="True" Color="{StaticResource P.Cyan.487}"/>
+    <SolidColorBrush x:Key="LabelMagentaBrush" po:Freeze="True" Color="{StaticResource P.Pink.503}"/>
+    <SolidColorBrush x:Key="LabelOliveBrush" po:Freeze="True" Color="{StaticResource P.Green.509}"/>
+    <SolidColorBrush x:Key="LabelGreenSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.964.a}"/>
+    <SolidColorBrush x:Key="LabelRedSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.961.a}"/>
+    <SolidColorBrush x:Key="LabelAmberSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.970}"/>
+    <SolidColorBrush x:Key="LabelBlueSoftBrush" po:Freeze="True" Color="{StaticResource P.Blue.947}"/>
+    <SolidColorBrush x:Key="LabelVioletSoftBrush" po:Freeze="True" Color="{StaticResource P.Magenta.949}"/>
+    <SolidColorBrush x:Key="LabelCyanSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.958}"/>
+    <SolidColorBrush x:Key="LabelMagentaSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.960}"/>
+    <SolidColorBrush x:Key="LabelOliveSoftBrush" po:Freeze="True" Color="{StaticResource P.Neutral.956}"/>
+    <LinearGradientBrush x:Key="AccentGradientBrush" po:Freeze="True" StartPoint="0.15,0" EndPoint="0.85,1">
+        <GradientStop Color="{StaticResource P.Violet.541}" Offset="0"/>
+        <GradientStop Color="{StaticResource P.Violet.491}" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="LogoGradientBrush" po:Freeze="True" StartPoint="0.15,0" EndPoint="0.85,1">
+        <GradientStop Color="{StaticResource P.Violet.606}" Offset="0"/>
+        <GradientStop Color="{StaticResource P.Violet.491}" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="AiStarBrush" po:Freeze="True" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="{StaticResource P.Violet.606}" Offset="0"/>
+        <GradientStop Color="{StaticResource P.Magenta.591}" Offset="1"/>
+    </LinearGradientBrush>
+    <Color x:Key="ShadowColor">#181d2d</Color> <!-- P.Violet.234 -->
+    <Color x:Key="AccentGlowColor">#7c3aed</Color> <!-- P.Violet.541 -->
+
+    <!-- ═══ Tier 3: component tokens, what one control paints with ═══ -->
+    <SolidColorBrush x:Key="WindowCloseHoverBrush" po:Freeze="True" Color="{StaticResource P.Orange.588}"/>
+    <SolidColorBrush x:Key="SwitchKnobBrush" po:Freeze="True" Color="{StaticResource P.Neutral.994}"/>
+    <SolidColorBrush x:Key="LightboxTextBrush" po:Freeze="True" Color="{StaticResource P.Neutral.1000.A72}"/>
+    <SolidColorBrush x:Key="LightboxTextFaintBrush" po:Freeze="True" Color="{StaticResource P.Neutral.1000.A65}"/>
+    <SolidColorBrush x:Key="LightboxIconBrush" po:Freeze="True" Color="{StaticResource P.Neutral.971}"/>
+    <SolidColorBrush x:Key="LightboxButtonBrush" po:Freeze="True" Color="{StaticResource P.Neutral.1000.A14}"/>
+    <SolidColorBrush x:Key="LightboxBorderBrush" po:Freeze="True" Color="{StaticResource P.Neutral.1000.A30}"/>
+    <SolidColorBrush x:Key="ButtonPrimaryForegroundBrush" po:Freeze="True" Color="{StaticResource P.Neutral.993}"/> <!-- = OnAccentBrush -->
+    <SolidColorBrush x:Key="ButtonSuccessForegroundBrush" po:Freeze="True" Color="{StaticResource P.Neutral.994.a}"/> <!-- = OnSuccessBrush -->
+    <SolidColorBrush x:Key="BadgeForegroundBrush" po:Freeze="True" Color="{StaticResource P.Neutral.993}"/> <!-- = OnAccentBrush -->
+    <SolidColorBrush x:Key="SwitchTrackOffBrush" po:Freeze="True" Color="{StaticResource P.Neutral.643.b}"/> <!-- = AccentTrackBrush -->
+    <SolidColorBrush x:Key="SwitchTrackOnBrush" po:Freeze="True" Color="{StaticResource P.Violet.541}"/> <!-- = AccentFillBrush -->
+    <SolidColorBrush x:Key="ChartBarBrush" po:Freeze="True" Color="{StaticResource P.Violet.651}"/> <!-- = ChartTrackBrush -->
+    <SolidColorBrush x:Key="ChartBarTodayBrush" po:Freeze="True" Color="{StaticResource P.Violet.541}"/> <!-- = AccentFillBrush -->
+    <SolidColorBrush x:Key="WindowCloseHoverForegroundBrush" po:Freeze="True" Color="{StaticResource P.Neutral.991}"/> <!-- = OnDangerBrush -->
+    <SolidColorBrush x:Key="TipLabelBrush" po:Freeze="True" Color="{StaticResource P.Violet.466}"/> <!-- = AccentDarkBrush -->
+    <SolidColorBrush x:Key="CardBrush" po:Freeze="True" Color="{StaticResource P.Neutral.994}"/> <!-- = SurfaceBrush -->
+    <SolidColorBrush x:Key="CardHoverBrush" po:Freeze="True" Color="{StaticResource P.Neutral.934}"/> <!-- = HoverBrush -->
+    <SolidColorBrush x:Key="ForegroundBrush" po:Freeze="True" Color="{StaticResource P.Neutral.240}"/> <!-- = TextPrimaryBrush -->
+    <SolidColorBrush x:Key="SubtleBrush" po:Freeze="True" Color="{StaticResource P.Violet.416}"/> <!-- = TextSecondaryBrush -->
+    <SolidColorBrush x:Key="MutedBrush" po:Freeze="True" Color="{StaticResource P.Violet.479}"/> <!-- = TextSubtleBrush -->
+    <SolidColorBrush x:Key="BackgroundBrush" po:Freeze="True" Color="{StaticResource P.Neutral.983}"/> <!-- = SurfaceMutedBrush -->
+    <SolidColorBrush x:Key="InputBrush" po:Freeze="True" Color="{StaticResource P.Neutral.994}"/> <!-- = SurfaceBrush -->
+
+</ResourceDictionary>

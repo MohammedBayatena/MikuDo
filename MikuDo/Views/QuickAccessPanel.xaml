@@ -1,0 +1,294 @@
+<UserControl x:Class="MikuDo.Views.QuickAccessPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             xmlns:vm="clr-namespace:MikuDo.ViewModels"
+             FontFamily="{StaticResource AppFont}" Focusable="False">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+
+        <!-- A row: soft grey under the pointer, the accent's tint while picked out -->
+        <Style x:Key="QuickRowButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="8" Background="Transparent" Padding="10,7">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The words on the right: a group, a hint, a folder; a task's workspace reads stronger -->
+        <Style x:Key="QuickAside" TargetType="ui:DrawnText">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="MaxWidth" Value="260"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFaintBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding AsideStrong}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="QuickIcon" TargetType="ui:Icon">
+            <Setter Property="Size" Value="15"/>
+            <Setter Property="StrokeThickness" Value="2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="Stroke" Value="{DynamicResource TextFaintBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Stroke" Value="{DynamicResource AccentDarkBrush}"/>
+                </DataTrigger>
+                <!-- Two lines: the icon keeps to the first -->
+                <DataTrigger Binding="{Binding HasSnippet}" Value="True">
+                    <Setter Property="VerticalAlignment" Value="Top"/>
+                    <Setter Property="Margin" Value="0,2,10,0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="QuickRight" TargetType="StackPanel">
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="12,0,0,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasSnippet}" Value="True">
+                    <Setter Property="VerticalAlignment" Value="Top"/>
+                    <Setter Property="Margin" Value="12,1,0,0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <DataTemplate DataType="{x:Type vm:QuickHeader}">
+            <DockPanel Margin="10,10,10,4" TextElement.Foreground="{DynamicResource TextFaintBrush}">
+                <ui:DrawnText DockPanel.Dock="Right" Text="{Binding Count}" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <ui:DrawnText Text="{Binding Title}" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+                <ui:DrawnText Text="{Binding NoteText}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </DockPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:QuickEmpty}">
+            <TextBlock Text="{Binding Text}" Margin="10,12" FontSize="12.5" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextFaintBrush}"/>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:QuickShowAll}">
+            <Border x:Name="pill" Margin="25,0,0,0" Padding="10,4,10,6" CornerRadius="8" HorizontalAlignment="Left" Background="Transparent">
+                <Button Style="{StaticResource LinkButton}" FontSize="12" Content="{Binding Text}" Click="Row_Click"/>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter TargetName="pill" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- Something found or offered: its icon, its name with a chip and lighter words after it,
+             a quoted line under it, and on the right a word or two, a prefix and its keys -->
+        <DataTemplate DataType="{x:Type vm:QuickItem}">
+            <Button Style="{StaticResource QuickRowButton}" Click="Row_Click">
+                <DockPanel MinHeight="20">
+                    <ui:Icon DockPanel.Dock="Left" Data="{Binding Icon}" Style="{StaticResource QuickIcon}"/>
+                    <StackPanel DockPanel.Dock="Right" Style="{StaticResource QuickRight}">
+                        <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding Dot}"
+                                 Visibility="{Binding Dot, Converter={StaticResource Vis}}"/>
+                        <ui:DrawnText Text="{Binding Aside}" Style="{StaticResource QuickAside}"/>
+                        <Border Style="{StaticResource PrefixChip}" Margin="8,0,0,0"
+                                Visibility="{Binding Prefix, Converter={StaticResource Vis}}">
+                            <ui:DrawnText Text="{Binding Prefix}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="Bold"
+                                          Foreground="{DynamicResource AccentDarkBrush}"/>
+                        </Border>
+                        <ui:KeyCaps Keys="{Binding Caps}" Margin="8,0,0,0"/>
+                    </StackPanel>
+                    <StackPanel VerticalAlignment="Center">
+                        <ui:LeadTrimPanel>
+                            <ui:DrawnText Text="{Binding Title}" Words="{Binding TitleWords}" VerticalAlignment="Center"
+                                          MatchForeground="{DynamicResource AccentDarkBrush}"
+                                          MatchBackground="{DynamicResource AccentTintBrush}"/>
+                            <Ellipse Width="7" Height="7" Margin="6,0,0,0" VerticalAlignment="Center" Fill="{Binding DetailDot}"
+                                     Visibility="{Binding DetailDot, Converter={StaticResource Vis}}"/>
+                            <ui:DrawnText Text="{Binding Detail}" Margin="6,0,0,0" FontWeight="Medium" VerticalAlignment="Center"
+                                          Foreground="{DynamicResource TextFaintBrush}"
+                                          Visibility="{Binding Detail, Converter={StaticResource Vis}}"/>
+                            <Border Style="{StaticResource WhereChip}" Margin="8,0,0,0"
+                                    Visibility="{Binding Chip, Converter={StaticResource Vis}}">
+                                <ui:DrawnText Text="{Binding Chip}" FontSize="10.5" FontWeight="Bold"
+                                              Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </Border>
+                        </ui:LeadTrimPanel>
+                        <ui:DrawnText Text="{Binding Snippet}" Words="{Binding SnippetWords}" Margin="0,2,0,0"
+                                      FontSize="11.5" FontWeight="Medium"
+                                      Foreground="{DynamicResource TextSecondaryBrush}"
+                                      MatchForeground="{DynamicResource AccentDarkBrush}"
+                                      MatchBackground="{DynamicResource AccentTintBrush}"
+                                      Visibility="{Binding HasSnippet, Converter={StaticResource Vis}}"/>
+                    </StackPanel>
+                </DockPanel>
+            </Button>
+        </DataTemplate>
+
+        <!-- A command in the commands-only list: its group, then its keys; one without keys
+             offers "Assign…" while picked out or pointed at -->
+        <DataTemplate DataType="{x:Type vm:QuickCommandRow}">
+            <Button x:Name="row" Style="{StaticResource QuickRowButton}" Click="Row_Click">
+                <DockPanel MinHeight="20">
+                    <ui:Icon DockPanel.Dock="Left" Data="{Binding Icon}" Style="{StaticResource QuickIcon}"/>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <Border MinWidth="86">
+                            <ui:DrawnText Text="{Binding Category}" Style="{StaticResource QuickAside}" HorizontalAlignment="Right"/>
+                        </Border>
+                        <ui:KeyCaps Keys="{Binding Caps}" Margin="8,0,0,0"/>
+                        <StackPanel x:Name="assign" Orientation="Horizontal" Margin="8,0,0,0" Visibility="Collapsed">
+                            <ui:DrawnText Text="No shortcut" Style="{StaticResource QuickAside}"/>
+                            <Button Style="{StaticResource LinkButton}" Content="Assign…" Margin="8,0,0,0" VerticalAlignment="Center"
+                                    Click="Assign_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <ui:DrawnText Text="{Binding Title}" Words="{Binding TitleWords}" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                  MatchForeground="{DynamicResource AccentDarkBrush}"
+                                  MatchBackground="{DynamicResource AccentTintBrush}"/>
+                </DockPanel>
+            </Button>
+            <DataTemplate.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding CanAssign}" Value="True"/>
+                        <Condition Binding="{Binding IsSelected}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter TargetName="assign" Property="Visibility" Value="Visible"/>
+                </MultiDataTrigger>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding CanAssign}" Value="True"/>
+                        <Condition Binding="{Binding IsMouseOver, ElementName=row}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter TargetName="assign" Property="Visibility" Value="Visible"/>
+                </MultiDataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- Rows are only containers here: the list never takes the caret or draws a selection of its own -->
+        <Style x:Key="QuickContainer" TargetType="ListBoxItem">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <ContentPresenter/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <ui:SoftShadow CornerRadius="12" BlurRadius="44" ShadowDepth="18" ShadowOpacity="0.18" SizeStep="24"
+                       Color="{DynamicResource ShadowColor}"/>
+        <Border CornerRadius="12" BorderThickness="1" Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Only the rows in view are built, however many there are -->
+                <ListBox x:Name="List" Grid.Row="0" ItemsSource="{Binding Rows}" Focusable="False" IsTabStop="False"
+                         ItemContainerStyle="{StaticResource QuickContainer}"
+                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Pixel" ScrollViewer.CanContentScroll="True"
+                         VirtualizingPanel.CacheLengthUnit="Pixel" VirtualizingPanel.CacheLength="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.Template>
+                        <ControlTemplate TargetType="ListBox">
+                            <!-- The thin bar always has its slot, so a list that just fills the panel is not
+                                 laid out twice to find out whether it needs one -->
+                            <ScrollViewer x:Name="Scroller" Focusable="False" Padding="6,6,0,6" CanContentScroll="True"
+                                          VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled">
+                                <ScrollViewer.Resources>
+                                    <!-- The thin bar of the sidebar: WPF's own minimum width would outrank its 4px.
+                                         Its slot and margin make up the list's padding on the right. -->
+                                    <Style TargetType="ScrollBar" BasedOn="{StaticResource {x:Type ScrollBar}}">
+                                        <Setter Property="MinWidth" Value="0"/>
+                                        <Setter Property="Margin" Value="0,6,2,6"/>
+                                    </Style>
+                                </ScrollViewer.Resources>
+                                <ItemsPresenter/>
+                            </ScrollViewer>
+                        </ControlTemplate>
+                    </ListBox.Template>
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox>
+
+                <!-- The keys that work here, and Esc on the right -->
+                <Border Grid.Row="1" Padding="16,9" CornerRadius="0,0,11,11" BorderThickness="0,1,0,0"
+                        Background="{DynamicResource SurfaceMutedBrush}" BorderBrush="{DynamicResource DividerBrush}"
+                        TextElement.FontSize="11.5" TextElement.Foreground="{DynamicResource TextFaintBrush}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                            <ui:KeyCaps Keys="{Binding EscCaps}"/>
+                            <TextBlock Text="close" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding Hints}" Focusable="False" IsTabStop="False" VerticalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,3,16,3">
+                                        <ui:KeyCaps Keys="{Binding Caps}" Margin="0,0,6,0"
+                                                    Visibility="{Binding HasCaps, Converter={StaticResource Vis}}"/>
+                                        <ItemsControl ItemsSource="{Binding Prefixes}" Focusable="False" IsTabStop="False" Margin="0,0,2,0"
+                                                      VerticalAlignment="Center"
+                                                      Visibility="{Binding HasPrefixes, Converter={StaticResource Vis}}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Style="{StaticResource PrefixChip}" Margin="0,0,4,0">
+                                                        <TextBlock Text="{Binding}" Style="{StaticResource PrefixChipText}"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{Binding Text}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

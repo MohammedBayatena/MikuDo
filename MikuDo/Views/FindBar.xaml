@@ -1,0 +1,167 @@
+<UserControl x:Class="MikuDo.Views.FindBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="FindVis"/>
+        <conv:EqualsToOnOffConverter x:Key="FindOnOff"/>
+
+        <!-- A way of matching: lit while it is on. It never takes the caret from the box. -->
+        <Style x:Key="FindToggle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="bd" CornerRadius="5" BorderThickness="1" Background="Transparent" BorderBrush="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Previous, next and close: faint while there is nothing to go to -->
+        <Style x:Key="FindStepButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.4"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="FindIcon" TargetType="ui:Icon">
+            <Setter Property="Size" Value="14"/>
+            <Setter Property="StrokeThickness" Value="2.1"/>
+            <Setter Property="Stroke" Value="{DynamicResource TextMutedBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Clear, so it takes the colour of the page or the card it sits at the top of, corners and all -->
+    <Border Padding="14,7,10,7" Background="Transparent"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
+            Visibility="{Binding IsOpen, Converter={StaticResource FindVis}}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" MinWidth="200" MaxWidth="440"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- The words, and the three ways of matching them -->
+            <Border x:Name="Field" Grid.Column="0" Height="30" CornerRadius="8" Padding="9,0,3,0" BorderThickness="1"
+                    Background="{DynamicResource SurfaceBrush}">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource Self}}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource DangerBorderBrush}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ui:Icon Grid.Column="0" Data="{StaticResource IconSearch}" Size="13" StrokeThickness="2"
+                             VerticalAlignment="Center" Stroke="{DynamicResource TextFaintBrush}"/>
+                    <TextBox x:Name="FindBox" Grid.Column="1" Style="{StaticResource InputBox}" Margin="7,0,6,0" Padding="0"
+                             BorderThickness="0" Background="Transparent" FontSize="12.5"
+                             ui:Placeholder.Text="{Binding Placeholder}"
+                             PreviewKeyDown="FindBox_PreviewKeyDown"
+                             Text="{Binding Text, UpdateSourceTrigger=PropertyChanged, Delay=90}"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ToggleButton Style="{StaticResource FindToggle}" IsChecked="{Binding MatchCase}" ToolTip="Match case (Alt+C)">
+                            <TextBlock Text="Aa"/>
+                        </ToggleButton>
+                        <ToggleButton Style="{StaticResource FindToggle}" IsChecked="{Binding WholeWord}" ToolTip="Whole words only (Alt+W)">
+                            <TextBlock Text="ab" TextDecorations="Underline"/>
+                        </ToggleButton>
+                        <ToggleButton Style="{StaticResource FindToggle}" IsChecked="{Binding UseRegex}" ToolTip="Regular expression (Alt+R)">
+                            <TextBlock Text=".*" FontFamily="{StaticResource MonoFont}" FontWeight="Bold"/>
+                        </ToggleButton>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Where the search stands: "3 of 12", none, or why the regex cannot be used -->
+            <TextBlock Grid.Column="1" Text="{Binding ResultLabel}" Margin="12,0,6,0" MinWidth="64" FontSize="11.5"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="190">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Style="{StaticResource FindStepButton}" ToolTip="Previous match (Shift+Enter)"
+                        Command="{Binding PreviousCommand}" IsEnabled="{Binding HasMatches}">
+                    <ui:Icon Style="{StaticResource FindIcon}" Data="{StaticResource IconArrowUp}"/>
+                </Button>
+                <Button Style="{StaticResource FindStepButton}" Margin="2,0,0,0" ToolTip="Next match (Enter)"
+                        Command="{Binding NextCommand}" IsEnabled="{Binding HasMatches}">
+                    <ui:Icon Style="{StaticResource FindIcon}" Data="{StaticResource IconArrowDown}"/>
+                </Button>
+            </StackPanel>
+
+            <!-- With the Markdown and the preview side by side, either can be searched -->
+            <Border Grid.Column="4" Margin="0,0,8,0" CornerRadius="9" Padding="3" VerticalAlignment="Center"
+                    Background="{DynamicResource HoverBrush}"
+                    Visibility="{Binding CanChooseScope, Converter={StaticResource FindVis}}">
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource SegmentButton}" Padding="10,4" Focusable="False" Content="Preview"
+                            ToolTip="Search the page as it reads"
+                            Command="{Binding SetScopeCommand}" CommandParameter="Preview"
+                            Tag="{Binding Scope, Converter={StaticResource FindOnOff}, ConverterParameter=Preview}"/>
+                    <Button Style="{StaticResource SegmentButton}" Padding="10,4" Focusable="False" Content="Markdown"
+                            ToolTip="Search the Markdown being edited"
+                            Command="{Binding SetScopeCommand}" CommandParameter="Markdown"
+                            Tag="{Binding Scope, Converter={StaticResource FindOnOff}, ConverterParameter=Markdown}"/>
+                </StackPanel>
+            </Border>
+
+            <Button Grid.Column="5" Style="{StaticResource FindStepButton}" ToolTip="Close (Esc)" Command="{Binding CloseCommand}">
+                <ui:Icon Data="{StaticResource IconClose}" Size="10" StrokeThickness="2.4" Stroke="{DynamicResource TextMutedBrush}"/>
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

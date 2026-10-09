@@ -1,0 +1,41 @@
+# ── Build output ────────────────────────────────────────────
+bin/
+obj/
+publish/
+artifacts/
+*.nupkg
+
+# ── Visual Studio, Rider, VS Code ───────────────────────────
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userprefs
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+*.rsuser
+
+# ── Claude Code's per-machine settings ──────────────────────
+.claude/settings.local.json
+
+# ── Python (tools/theme_studio.py) ──────────────────────────
+__pycache__/
+*.py[cod]
+
+# ── Local data the app writes while you try it ──────────────
+# The real database, logs and models live in %LOCALAPPDATA%\Mikudo,
+# outside the repo; these catch copies made by hand.
+*.db
+*-log.db
+*.log
+*.gguf
+ggml-*.bin
+
+# ── Operating system ────────────────────────────────────────
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store

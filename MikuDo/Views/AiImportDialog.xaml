@@ -1,0 +1,327 @@
+<UserControl x:Class="MikuDo.Views.AiImportDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:ScaleConverter x:Key="Scale"/>
+    </UserControl.Resources>
+
+    <!--
+        The shadow is a SoftShadow under the dialog, not an Effect on it. An
+        Effect is worked out again whenever anything it covers is redrawn, so
+        every caret blink, keystroke and scroll in the dialog would re-blur the
+        whole card. Both sit in this grid, so the entrance scales them together.
+    -->
+    <Grid Width="560" MaxHeight="700" RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+            <ScaleTransform/>
+        </Grid.RenderTransform>
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <Style.Triggers>
+                    <!-- The dialog stays in the tree and is only collapsed, so the
+                         entrance hangs off becoming visible, not off Loaded. -->
+                    <DataTrigger Binding="{Binding IsVisible, RelativeSource={RelativeSource Self}}" Value="True">
+                        <DataTrigger.EnterActions>
+                            <BeginStoryboard Storyboard="{StaticResource DialogIn}"/>
+                        </DataTrigger.EnterActions>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
+        <ui:SoftShadow CornerRadius="14" BlurRadius="60" ShadowDepth="24" ShadowOpacity="0.28"
+                       Color="{DynamicResource ShadowColor}"/>
+        <Border CornerRadius="14"
+                Background="{DynamicResource SurfaceBrush}"
+                ui:RoundedClip.Radius="14"
+                TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
+            <DockPanel>
+
+                <!-- Header -->
+                <Border DockPanel.Dock="Top" Padding="18,16" BorderBrush="{DynamicResource DividerBrush}"
+                        BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Width="30" Height="30" CornerRadius="8"
+                                Background="{DynamicResource AccentSoftBrush}">
+                            <ui:Icon Data="{StaticResource IconAiStar}" Size="16" StrokeThickness="0"
+                                        Fill="{DynamicResource AiStarBrush}"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="10,0">
+                            <TextBlock Text="AI Import Tasks" FontSize="14" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Paste notes or choose a file. Tasks are extracted on this machine."
+                                       FontSize="11.5" Margin="0,2,0,0" Foreground="{DynamicResource TextSubtleBrush}"/>
+                        </StackPanel>
+                        <Button Grid.Column="2" Style="{StaticResource IconButton}" Width="28" Height="28" ToolTip="Close"
+                                Command="{Binding DataContext.CloseAiImportCommand, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <ui:Icon Data="{StaticResource IconClose}" Size="15" StrokeThickness="2"
+                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Footer -->
+                <Border DockPanel.Dock="Bottom" Padding="18,14" Background="{DynamicResource SurfaceMutedBrush}"
+                        BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="11"
+                                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFaintBrush}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="Status, priority and labels are inferred; indented bullets become subtasks."/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPreview}" Value="True">
+                                            <Setter Property="Text" Value="Untick anything you do not want, then save."/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding UsedFallback}" Value="True">
+                                            <Setter Property="Text" Value="{Binding FallbackReason}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <!-- Input stage -->
+                            <StackPanel Orientation="Horizontal" Visibility="{Binding IsInput, Converter={StaticResource Vis}}">
+                                <Button Style="{StaticResource GhostButton}" Content="Cancel" Padding="14,9"
+                                        Command="{Binding DataContext.CloseAiImportCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Button Style="{StaticResource SoftAccentButton}" Margin="10,0,0,0" Padding="15,9"
+                                        Command="{Binding DownloadModelCommand}"
+                                        Visibility="{Binding NeedsModel, Converter={StaticResource Vis}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:Icon Data="{StaticResource IconImport}" Size="13" StrokeThickness="1.9"
+                                                 Stroke="{DynamicResource AccentBrush}"/>
+                                        <TextBlock Text="Download model" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                   FontSize="12" FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentDarkBrush}"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource PrimaryButton}" Margin="10,0,0,0" Padding="15,9"
+                                        IsEnabled="{Binding CanConvert}" Command="{Binding ConvertCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:Icon Data="{StaticResource IconArrowRight}" Size="13" Stroke="{DynamicResource ButtonPrimaryForegroundBrush}" StrokeThickness="2"/>
+                                        <TextBlock Text="Convert to Tasks" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                   FontSize="12" FontWeight="Bold" Foreground="{DynamicResource ButtonPrimaryForegroundBrush}"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <!-- Preview stage -->
+                            <StackPanel Orientation="Horizontal" Visibility="{Binding IsPreview, Converter={StaticResource Vis}}">
+                                <Button Style="{StaticResource GhostButton}" Content="Back" Padding="14,9"
+                                        Command="{Binding BackToInputCommand}"/>
+                                <Button Style="{StaticResource PrimaryButton}" Margin="10,0,0,0" Padding="16,9"
+                                        Content="{Binding CreateLabel}" Command="{Binding SaveTasksCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Body -->
+                <Grid>
+                    <!-- Input -->
+                    <StackPanel Margin="18" Visibility="{Binding IsInput, Converter={StaticResource Vis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource GhostButton}" Command="{Binding PickFileCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:Icon Data="{StaticResource IconFile}" Size="14"
+                                             Stroke="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Text="Choose file" Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                               FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Text="{Binding FileLabel}" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="11.5"
+                                       Foreground="{DynamicResource TextFaintBrush}"/>
+                        </StackPanel>
+
+                        <TextBox Style="{StaticResource TextAreaBox}" Height="250" Margin="0,12,0,0"
+                                 ui:Placeholder.Text="Paste meeting notes, a brief, or a rough list — one idea per line…"
+                                 Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <Border Margin="0,12,0,0" CornerRadius="9" Padding="11,9"
+                                Background="{DynamicResource AccentSoftBrush}"
+                                BorderBrush="{DynamicResource AccentBorderBrush}" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ui:Icon Grid.Column="0" Data="{StaticResource IconAiStar}" Size="14" StrokeThickness="0"
+                                         Fill="{DynamicResource AiStarBrush}" VerticalAlignment="Top"/>
+                                <TextBlock Grid.Column="1" Margin="9,0,0,0" FontSize="11" LineHeight="17" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource AccentDarkBrush}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text">
+                                                    <Setter.Value>
+                                                        <Binding Path="ModelName"
+                                                                 StringFormat="Using {0} on your CPU — nothing leaves this machine. Change the model in Settings."/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding NeedsModel}" Value="True">
+                                                    <Setter Property="Text">
+                                                            <Setter.Value>
+                                                                <Binding Path="ModelName"
+                                                                         StringFormat="{}{0} is not installed. Download it to classify status and labels, or convert now with keyword rules alone."/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Text="{Binding StatusText}" Margin="0,10,0,0" FontSize="11.5"
+                                   Foreground="{DynamicResource DangerAccentBrush}"
+                                   Visibility="{Binding StatusText, Converter={StaticResource Vis}}"/>
+                    </StackPanel>
+
+                    <!-- Downloading -->
+                    <StackPanel Margin="18" VerticalAlignment="Center"
+                                Visibility="{Binding IsDownloading, Converter={StaticResource Vis}}">
+                        <TextBlock Text="{Binding StatusText}" FontSize="13" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Border Margin="0,14,0,0" Height="8" CornerRadius="3" Background="{DynamicResource HoverBrush}"
+                                x:Name="ProgressTrack">
+                            <Border HorizontalAlignment="Left" CornerRadius="3"
+                                    Background="{DynamicResource AccentGradientBrush}"
+                                    Width="{Binding DownloadProgress, Converter={StaticResource Scale},
+                                            ConverterParameter=524}"/>
+                        </Border>
+                        <TextBlock Text="{Binding DownloadPercentLabel}" Margin="0,10,0,0" FontSize="12" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Foreground="{DynamicResource AccentDarkBrush}"/>
+                        <TextBlock Text="{Binding ModelName}" Margin="0,4,0,0" FontSize="11" HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                    </StackPanel>
+
+                    <!-- Working -->
+                    <StackPanel Margin="18" VerticalAlignment="Center"
+                                Visibility="{Binding IsWorking, Converter={StaticResource Vis}}">
+                        <ui:Icon Data="{StaticResource IconAiStar}" Size="30" StrokeThickness="0"
+                                 Fill="{DynamicResource AiStarBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding StatusText}" Margin="0,14,0,0" FontSize="13" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="This can take a moment the first time the model loads."
+                                   Margin="0,6,0,0" FontSize="11.5" HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                    </StackPanel>
+
+                    <!-- Preview -->
+                    <DockPanel Visibility="{Binding IsPreview, Converter={StaticResource Vis}}">
+                        <Border DockPanel.Dock="Top" Padding="18,12" BorderBrush="{DynamicResource DividerSoftBrush}"
+                                BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}">
+                                    <Run Text="{Binding SelectedCount, Mode=OneWay}"/><Run Text=" of "/><Run Text="{Binding Proposals.Count, Mode=OneWay}"/><Run Text=" tasks selected"/>
+                                </TextBlock>
+                                <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Select all / none"
+                                        FontSize="11" Padding="10,6" Command="{Binding SelectAllCommand}"/>
+                            </Grid>
+                        </Border>
+
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="420">
+                            <ItemsControl ItemsSource="{Binding Proposals}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="18,12" BorderBrush="{DynamicResource DividerSoftBrush}"
+                                                BorderThickness="0,0,0,1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <CheckBox Grid.Column="0" Style="{StaticResource TickBox}" VerticalAlignment="Top"
+                                                          Margin="0,4,0,0" IsChecked="{Binding IsSelected, Mode=TwoWay}"/>
+
+                                                <StackPanel Grid.Column="1" Margin="12,0,10,0">
+                                                    <TextBox Style="{StaticResource PlainTextArea}"
+                                                             FontFamily="{StaticResource AppFont}" FontSize="12.5"
+                                                             FontWeight="SemiBold" Padding="0" AcceptsReturn="False"
+                                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                                             ui:Placeholder.Text="Task name"
+                                                             Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    <TextBox Style="{StaticResource PlainTextArea}"
+                                                             FontFamily="{StaticResource AppFont}" FontSize="11" Padding="0"
+                                                             Margin="0,2,0,0" AcceptsReturn="False"
+                                                             Foreground="{DynamicResource TextSubtleBrush}"
+                                                             ui:Placeholder.Text="No description"
+                                                             Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                                    <WrapPanel Margin="0,7,0,0">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                                                            <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                                                     Fill="{Binding StatusForeground}"/>
+                                                            <TextBlock Text="{Binding StatusName}" Margin="6,0,0,0" FontSize="11"
+                                                                       FontWeight="SemiBold" Foreground="{Binding StatusForeground}"/>
+                                                        </StackPanel>
+                                                        <ItemsControl ItemsSource="{Binding Labels}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border CornerRadius="6" Padding="7,3" Margin="0,0,6,4"
+                                                                            Background="{Binding Background}">
+                                                                        <TextBlock Text="{Binding Label}" FontSize="10.5"
+                                                                                   FontWeight="SemiBold" Foreground="{Binding Foreground}"/>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <TextBlock Text="{Binding PriorityLabel}" Margin="4,0,10,4" FontSize="10.5"
+                                                                   FontWeight="SemiBold" VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource TextFaintBrush}"
+                                                                   Visibility="{Binding PriorityLabel, Converter={StaticResource Vis}}"/>
+                                                        <TextBlock Text="{Binding SubtaskLabel}" Margin="0,0,0,4" FontSize="10.5"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource TextFaintBrush}"
+                                                                   Visibility="{Binding SubtaskLabel, Converter={StaticResource Vis}}"/>
+                                                    </WrapPanel>
+                                                </StackPanel>
+
+                                                <Button Grid.Column="2" Style="{StaticResource IconButton}" VerticalAlignment="Top"
+                                                        ToolTip="Discard this task"
+                                                        Command="{Binding DataContext.RemoveProposalCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <ui:Icon Data="{StaticResource IconClose}" Size="12" StrokeThickness="2.2"
+                                                             Stroke="{DynamicResource TextFaintBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

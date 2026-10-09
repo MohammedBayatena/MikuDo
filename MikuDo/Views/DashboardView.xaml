@@ -1,0 +1,411 @@
+<UserControl x:Class="MikuDo.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:ShareOfConverter x:Key="ShareOf"/>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource SurfaceBrush}"
+          TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,18">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Dashboard" Style="{StaticResource PageTitle}"/>
+                    <TextBlock Text="{Binding TodayLabel}" Style="{StaticResource PageSubtitle}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Which workspace the figures cover -->
+                    <Grid Margin="0,0,8,0">
+                        <Button Style="{StaticResource GhostButton}" Padding="11,8" ToolTip="Show one workspace or all of them"
+                                Command="{Binding ToggleWorkspaceMenuCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Icon Data="{StaticResource IconWorkspace}" Size="13" StrokeThickness="1.9"
+                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding WorkspaceLabel}" Margin="7,0,7,0" MaxWidth="170"
+                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                <ui:Icon Data="{StaticResource IconCaretDown}" Size="10" StrokeThickness="2.4"
+                                         Stroke="{DynamicResource TextFaintBrush}"/>
+                            </StackPanel>
+                        </Button>
+                        <Popup IsOpen="{Binding IsWorkspaceMenuOpen, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
+                               Placement="Bottom" VerticalOffset="4" PopupAnimation="None">
+                            <ContentControl Style="{StaticResource Popover}" Width="230" Padding="5" Margin="10">
+                                <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding WorkspaceChoices}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource MenuRowButton}"
+                                                        Command="{Binding DataContext.PickWorkspaceCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <!-- The slot keeps its width, so the names line up -->
+                                                        <Grid Width="12">
+                                                            <ui:Icon Data="{StaticResource IconCheck}" Size="12" StrokeThickness="2.4"
+                                                                     Stroke="{DynamicResource AccentBrush}"
+                                                                     Visibility="{Binding IsSelected, Converter={StaticResource Vis}}"/>
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Name}" Margin="8,0,0,0" MaxWidth="170"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </ContentControl>
+                        </Popup>
+                    </Grid>
+
+                    <Button Style="{StaticResource PrimaryButton}"
+                            Command="{Binding DataContext.OpenAddTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconPlus}" Size="13" Stroke="{DynamicResource ButtonPrimaryForegroundBrush}" StrokeThickness="2.2"/>
+                            <TextBlock Text="Add Task" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                       FontWeight="Bold" Foreground="{DynamicResource ButtonPrimaryForegroundBrush}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource SoftAccentButton}" Margin="8,0,0,0"
+                            Command="{Binding DataContext.OpenAiImportCommand, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconAiStar}" Size="14" StrokeThickness="0" Fill="{DynamicResource AiStarBrush}"/>
+                            <TextBlock Text="AI Import Tasks" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                       FontWeight="Bold" Foreground="{DynamicResource AccentDarkBrush}"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Islands: panels as cards on the muted canvas. Flat: one surface divided by
+             borders; the stats a strip, each panel under a heading strip. -->
+        <Grid Grid.Row="1" Style="{StaticResource PageCanvas}">
+            <Grid Margin="{ui:ByLayout Islands='20,18,20,24', Flat=0}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Stat cards; in Flat a strip, its last border just past the page's edge -->
+                <Border Grid.Row="0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="{ui:ByLayout Islands=0, Flat='0,0,0,1'}">
+                <ItemsControl ItemsSource="{Binding Stats}" AlternationCount="2" Margin="{ui:ByLayout Islands=0, Flat='0,0,-1,0'}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="{ui:ByLayout Islands='6,0', Flat=0}" Padding="{ui:ByLayout Islands='16,14', Flat='20,16'}"
+                                    BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,1,0'}">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True"/>
+                                                    <Condition Binding="{Binding (ItemsControl.AlternationIndex),
+                                                                         RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="1"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Label}" FontSize="11.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <TextBlock Text="{Binding Value}" FontSize="26" FontWeight="ExtraBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{Binding Delta}" Margin="8,0,0,3" FontSize="11" FontWeight="SemiBold"
+                                                   VerticalAlignment="Bottom" Foreground="{Binding DeltaForeground}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                </Border>
+
+                <Grid Grid.Row="1" Margin="{ui:ByLayout Islands='0,16,0,0', Flat=0}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.5*"/>
+                        <ColumnDefinition Width="1*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: the week across the top; the breakdown and the flow beneath -->
+                    <Grid Grid.Column="0" Margin="{ui:ByLayout Islands='0,0,7,0', Flat=0}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Completed this week, across the top -->
+                        <Border Grid.Row="0" Grid.ColumnSpan="2" Margin="{ui:ByLayout Islands='0,0,0,7', Flat=0}"
+                                Padding="{ui:ByLayout Islands=16, Flat=0}" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <DockPanel>
+                                <Border DockPanel.Dock="Top" Style="{StaticResource PanelHeaderDone}">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Width="16" Height="16" Margin="0,0,8,0" CornerRadius="99" VerticalAlignment="Center"
+                                                Background="{DynamicResource SurfaceBrush}"
+                                                Visibility="{ui:ByLayout Islands=Collapsed, Flat=Visible}">
+                                            <Ellipse Width="7" Height="7" Fill="{DynamicResource StatusDoneDotBrush}"/>
+                                        </Border>
+                                        <TextBlock Text="Completed this week" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding WeekSummary}" Margin="10,0,0,0" FontSize="11"
+                                                   VerticalAlignment="{ui:ByLayout Islands=Bottom, Flat=Center}"
+                                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Grid Margin="{ui:ByLayout Islands='0,18,0,0', Flat='20,18,20,16'}" MinHeight="140">
+                                <TextBlock Text="Nothing completed in the last 7 days" FontSize="12"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextGhostSoftBrush}"
+                                           Visibility="{Binding ChartIsEmpty, Converter={StaticResource Vis}}"/>
+                                <!-- The bars grow with the card; the day labels keep 26px -->
+                                <ItemsControl x:Name="Bars" ItemsSource="{Binding Chart}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="5,0" ToolTip="{Binding Count}">
+                                                <TextBlock DockPanel.Dock="Bottom" Text="{Binding Day}" FontSize="10.5"
+                                                           FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,8,0,0"
+                                                           Foreground="{DynamicResource TextFaintBrush}"/>
+                                                <Border CornerRadius="6,6,3,3" VerticalAlignment="Bottom">
+                                                    <Border.Height>
+                                                        <MultiBinding Converter="{StaticResource ShareOf}" ConverterParameter="26">
+                                                            <Binding Path="Height"/>
+                                                            <Binding Path="ActualHeight" ElementName="Bars"/>
+                                                        </MultiBinding>
+                                                    </Border.Height>
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{DynamicResource ChartBarBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                                                    <Setter Property="Background" Value="{DynamicResource ChartBarTodayBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                </Border>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                </Grid>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Breakdown: every task shown, by status -->
+                        <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource Card}" Margin="{ui:ByLayout Islands='0,7,7,0', Flat=0}"
+                                Padding="{ui:ByLayout Islands=16, Flat=0}" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,1,0'}">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Top" Style="{StaticResource PanelHeader}">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Breakdown" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="by status" Margin="10,0,0,0" FontSize="11"
+                                                   VerticalAlignment="{ui:ByLayout Islands=Bottom, Flat=Center}"
+                                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Grid Margin="{ui:ByLayout Islands='0,14,0,0', Flat='20,16'}" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid Width="116" Height="116">
+                                        <ui:DonutChart Segments="{Binding BreakdownSegments}" RingThickness="13"
+                                                       Track="{DynamicResource ChartTrackBrush}"/>
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding BreakdownTotal}" FontSize="22" FontWeight="ExtraBold"
+                                                       HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="tasks" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                       Foreground="{DynamicResource TextFaintBrush}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <ItemsControl Grid.Column="1" Margin="18,0,0,0" VerticalAlignment="Center"
+                                                  ItemsSource="{Binding Breakdown}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,5">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="44"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{Binding Dot}"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Name}" Margin="9,0,8,0" FontSize="12"
+                                                               FontWeight="SemiBold" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Count}" FontSize="13" FontWeight="Bold"
+                                                               VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding Share}" FontSize="11" TextAlignment="Right"
+                                                               VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Flow: in against out this week, and how long a task takes -->
+                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}" Margin="{ui:ByLayout Islands='7,7,0,0', Flat=0}"
+                                Padding="{ui:ByLayout Islands=16, Flat=0}" BorderThickness="{ui:ByLayout Islands=1, Flat=0}">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Top" Style="{StaticResource PanelHeader}">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Flow" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="last 7 days" Margin="10,0,0,0" FontSize="11"
+                                                   VerticalAlignment="{ui:ByLayout Islands=Bottom, Flat=Center}"
+                                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Margin="{ui:ByLayout Islands='0,14,0,0', Flat='20,16'}" VerticalAlignment="Center">
+                                    <UniformGrid Columns="2">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding CreatedThisWeek}" FontSize="24" FontWeight="ExtraBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Created" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding CompletedThisWeek}" FontSize="24" FontWeight="ExtraBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Completed" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        </StackPanel>
+                                    </UniformGrid>
+                                    <TextBlock Text="{Binding FlowNote}" Margin="0,9,0,0" FontSize="11.5" FontWeight="SemiBold"
+                                               Foreground="{Binding FlowNoteForeground}"/>
+                                    <Border Height="1" Margin="0,13" Background="{DynamicResource DividerBrush}"/>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding CycleTime}" Margin="10,0,0,0"
+                                                   FontSize="17" FontWeight="ExtraBold" VerticalAlignment="Top"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <StackPanel>
+                                            <TextBlock Text="Time to done" FontSize="12" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding CycleNote}" Margin="0,2,0,0" FontSize="10.5"
+                                                       TextWrapping="Wrap" Foreground="{DynamicResource TextFaintBrush}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Needs attention -->
+                    <Border Grid.Column="1" Style="{StaticResource Card}" Margin="{ui:ByLayout Islands='7,0,0,0', Flat=0}" ClipToBounds="True"
+                            BorderThickness="{ui:ByLayout Islands=1, Flat='1,0,0,0'}">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Top">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource PanelHeaderTodo}">
+                                        <Setter Property="Padding" Value="16,14"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Width="16" Height="16" Margin="0,0,8,0" CornerRadius="99" VerticalAlignment="Center"
+                                            Background="{DynamicResource SurfaceBrush}"
+                                            Visibility="{ui:ByLayout Islands=Collapsed, Flat=Visible}">
+                                        <Ellipse Width="7" Height="7" Fill="{DynamicResource StatusTodoDotBrush}"/>
+                                    </Border>
+                                    <TextBlock Text="Needs attention" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                    <Border Style="{StaticResource CountPill}" Margin="8,0,0,0"
+                                            Visibility="{ui:ByLayout Islands=Collapsed, Flat=Visible}">
+                                        <TextBlock Text="{Binding NeedsAttention.Count}" FontSize="11" FontWeight="Bold"
+                                                   Foreground="{DynamicResource StatusTodoBrush}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock DockPanel.Dock="Top" Text="Nothing needs attention right now" FontSize="11.5"
+                                       Margin="16,14" Foreground="{DynamicResource TextGhostSoftBrush}"
+                                       Visibility="{Binding NeedsAttention.Count, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding NeedsAttention}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource RowButton}" HorizontalContentAlignment="Stretch"
+                                                    Command="{Binding DataContext.OpenTaskCommand,
+                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <Border Padding="{ui:ByLayout Islands='16,11', Flat='20,10'}" BorderBrush="{DynamicResource DividerSoftBrush}"
+                                                        BorderThickness="0,0,0,1">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center"
+                                                                 Fill="{Binding Dot}"/>
+                                                        <StackPanel Grid.Column="1" Margin="10,0,8,0">
+                                                            <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="SemiBold"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                            <TextBlock Text="{Binding Note}" FontSize="11" Margin="0,1,0,0"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Column="2" Margin="0,0,10,0">
+                                                            <ui:PriorityGlyph VerticalAlignment="Center" Priority="{Binding Priority}"
+                                                                              Fill="{Binding PriorityForeground}" Ghost="{DynamicResource PriorityGhostBrush}"/>
+                                                            <TextBlock Text="{Binding PriorityName}" Margin="5,0,0,0" FontSize="10.5" FontWeight="SemiBold"
+                                                                       VerticalAlignment="Center" Foreground="{Binding PriorityForeground}"
+                                                                       Visibility="{Binding HasPriority, Converter={StaticResource Vis}}"/>
+                                                            <ui:CommentCount Count="{Binding CommentCount}" LeadingGap="10" VerticalAlignment="Center"
+                                                                             Foreground="{DynamicResource TextMutedBrush}"/>
+                                                        </StackPanel>
+                                                        <Border Grid.Column="3" CornerRadius="6" Padding="7,3"
+                                                                VerticalAlignment="Center" Background="{Binding TagBackground}">
+                                                            <TextBlock Text="{Binding Tag}" FontSize="10.5" FontWeight="SemiBold"
+                                                                       Foreground="{Binding TagForeground}"/>
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

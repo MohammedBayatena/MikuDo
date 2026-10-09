@@ -1,0 +1,619 @@
+<UserControl x:Class="MikuDo.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             xmlns:views="clr-namespace:MikuDo.Views"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:BoolToOnOffConverter x:Key="BoolOnOff"/>
+        <conv:EqualsToOnOffConverter x:Key="EqOnOff"/>
+
+        <!-- A layout to pick: a small page drawn the way the layout lays it out -->
+        <Style x:Key="LayoutTile" TargetType="Button">
+            <Setter Property="Width" Value="212"/>
+            <Setter Property="Margin" Value="0,0,10,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="card" CornerRadius="10" Padding="8" BorderThickness="1.5"
+                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="card" Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="on">
+                                <Setter TargetName="card" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="card" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <conv:ShowIfNeitherConverter x:Key="ShowIfNeither"/>
+
+        <!-- A downloadable model: AI Import and dictation share it -->
+        <DataTemplate x:Key="ModelRow">
+            <Border CornerRadius="{ui:ByLayout Islands=10, Flat=0}" Padding="{ui:ByLayout Islands='12,10', Flat='12,11'}"
+                    Margin="{ui:ByLayout Islands='0,0,0,8', Flat=0}" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Width="16" Height="16" CornerRadius="99"
+                            VerticalAlignment="Center" BorderThickness="1.8">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="BorderBrush" Value="{DynamicResource CheckBorderBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Ellipse Width="8" Height="8">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="Transparent"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                            <Setter Property="Fill" Value="{DynamicResource AccentBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Margin="11,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding DisplayName}" FontSize="12.5" FontWeight="Bold"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <Border CornerRadius="6" Padding="7,2" Margin="8,0,0,0"
+                                    Background="{DynamicResource HoverBrush}" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SizeLabel}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Border>
+                            <Border CornerRadius="6" Padding="7,2" Margin="6,0,0,0"
+                                    Background="{DynamicResource AccentSoftAltBrush}" VerticalAlignment="Center"
+                                    Visibility="{Binding IsInstalled, Converter={StaticResource Vis}}">
+                                <TextBlock Text="Installed" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AccentDarkBrush}"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Note}" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSubtleBrush}"/>
+                        <TextBlock Margin="0,4,0,0" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentDarkBrush}"
+                                   Visibility="{Binding IsDownloading, Converter={StaticResource Vis}}">
+                            <Run Text="Downloading… "/><Run Text="{Binding ProgressLabel, Mode=OneWay}"/>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Style="{StaticResource GhostButton}" Content="Use" FontSize="11" Padding="11,6"
+                                Command="{Binding DataContext.SelectModelCommand,
+                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}">
+                            <Button.Visibility>
+                                <MultiBinding Converter="{StaticResource ShowIfNeither}">
+                                    <Binding Path="IsSelected"/>
+                                    <Binding Path="IsDownloading"/>
+                                </MultiBinding>
+                            </Button.Visibility>
+                        </Button>
+                        <Button Style="{StaticResource GhostButton}" Content="Download" FontSize="11"
+                                Padding="11,6" Margin="6,0,0,0"
+                                Command="{Binding DataContext.DownloadModelCommand,
+                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}">
+                            <Button.Visibility>
+                                <MultiBinding Converter="{StaticResource ShowIfNeither}">
+                                    <Binding Path="IsInstalled"/>
+                                    <Binding Path="IsDownloading"/>
+                                </MultiBinding>
+                            </Button.Visibility>
+                        </Button>
+                        <Button Style="{StaticResource IconButton}" Margin="6,0,0,0" ToolTip="Delete from disk"
+                                Visibility="{Binding IsInstalled, Converter={StaticResource Vis}}"
+                                Command="{Binding DataContext.DeleteModelCommand,
+                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}">
+                            <ui:Icon Data="{StaticResource IconTrash}" Size="13"
+                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource SurfaceBrush}"
+          TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,18">
+            <StackPanel>
+                <TextBlock Text="Settings" Style="{StaticResource PageTitle}"/>
+                <TextBlock Text="Capture, appearance, AI, dictation and backup preferences." Style="{StaticResource PageSubtitle}"/>
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer x:Name="Scroller" Grid.Row="1" Style="{StaticResource PageScroller}"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel VerticalAlignment="Top">
+                <Border Style="{StaticResource SectionStrip}">
+                    <TextBlock Text="SETTINGS" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                               Margin="{ui:ByLayout Islands='2,0,2,8', Flat=0}"/>
+                </Border>
+
+                <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                    <StackPanel>
+
+                        <!-- Screenshot mode -->
+                        <Border x:Name="SectionScreenshot" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Screenshot Mode" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding ScreenshotNote}"
+                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="14,9"
+                                        Content="{Binding Main.ScreenshotModeLabel}" VerticalAlignment="Center"
+                                        Command="{Binding Main.ToggleScreenshotModeCommand}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Theme -->
+                        <Border x:Name="SectionTheme" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <StackPanel>
+                                <TextBlock Text="Theme" FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSubtleBrush}"
+                                           Text="{Binding ThemeNote}"/>
+
+                                <ItemsControl ItemsSource="{Binding Themes}" Margin="0,12,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Width="212" Margin="0,0,10,10" Cursor="Hand" Focusable="True"
+                                                    ToolTip="{Binding Description}"
+                                                    Command="{Binding DataContext.Main.SelectThemeCommand,
+                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding Id}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="card" CornerRadius="10" Padding="8" BorderThickness="1.5"
+                                                                Background="{DynamicResource SurfaceBrush}"
+                                                                BorderBrush="{DynamicResource BorderBrush}">
+                                                            <ContentPresenter/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="card" Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                                                            </Trigger>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter TargetName="card" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                                <Setter TargetName="card" Property="BorderThickness" Value="2"/>
+                                                            </DataTrigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                                <StackPanel>
+                                                    <!-- A small board drawn in the theme's own colours -->
+                                                    <Border Height="92" CornerRadius="7" Padding="7" Background="{Binding Canvas}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="34"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border CornerRadius="5" Background="{Binding Surface}" Margin="0,0,6,0">
+                                                                <StackPanel Margin="6">
+                                                                    <Image Width="14" Height="14" HorizontalAlignment="Left" Source="pack://application:,,,/MikuDo;component/Assets/logo.png" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                                    <Border Height="4" CornerRadius="2" Margin="0,8,0,0" Background="{Binding AccentSoft}"/>
+                                                                    <Border Height="4" CornerRadius="2" Margin="0,5,0,0" Background="{Binding Border}"/>
+                                                                    <Border Height="4" CornerRadius="2" Margin="0,5,0,0" Background="{Binding Border}"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <Border Grid.Column="1" CornerRadius="5" Padding="8,7" Background="{Binding Surface}"
+                                                                    BorderBrush="{Binding Border}" BorderThickness="1">
+                                                                <StackPanel>
+                                                                    <TextBlock Text="Ship v2.0" FontSize="11" FontWeight="Bold" Foreground="{Binding TextPrimary}"/>
+                                                                    <TextBlock Text="3 subtasks, 2 done" FontSize="9.5" Margin="0,2,0,0" Foreground="{Binding TextMuted}"/>
+                                                                    <DockPanel Margin="0,9,0,0">
+                                                                        <Border DockPanel.Dock="Right" CornerRadius="4" Padding="7,2" Background="{Binding AccentFill}">
+                                                                            <TextBlock Text="Add" FontSize="9.5" FontWeight="Bold" Foreground="{Binding OnAccent}"/>
+                                                                        </Border>
+                                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                            <Ellipse Width="7" Height="7" Fill="{Binding TodoDot}"/>
+                                                                            <Ellipse Width="7" Height="7" Margin="4,0,0,0" Fill="{Binding DoingDot}"/>
+                                                                            <Ellipse Width="7" Height="7" Margin="4,0,0,0" Fill="{Binding DoneDot}"/>
+                                                                        </StackPanel>
+                                                                    </DockPanel>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                    <DockPanel Margin="2,9,2,2">
+                                                        <Border DockPanel.Dock="Right" CornerRadius="4" Padding="6,1" VerticalAlignment="Center"
+                                                                Background="{DynamicResource AccentSoftAltBrush}"
+                                                                Visibility="{Binding IsSelected, Converter={StaticResource Vis}}">
+                                                            <TextBlock Text="Current" FontSize="10" FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource AccentDarkBrush}"/>
+                                                        </Border>
+                                                        <TextBlock FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}">
+                                                            <Run Text="{Binding Name, Mode=OneWay}"/>
+                                                            <Run Text="{Binding Kind, Mode=OneWay}" FontSize="10.5" FontWeight="SemiBold"
+                                                                 Foreground="{DynamicResource TextSubtleBrush}"/>
+                                                        </TextBlock>
+                                                    </DockPanel>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Layout: Islands or Flat -->
+                        <Border x:Name="SectionLayout" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <StackPanel>
+                                <TextBlock Text="Layout" FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSubtleBrush}"
+                                           Text="Islands sets each list and panel on the page as a card of its own. Flat runs them edge to edge, divided by borders, with each list under a heading in its colour. Works with every theme."/>
+                                <WrapPanel Margin="0,12,0,0">
+                                    <Button Style="{StaticResource LayoutTile}" ToolTip="Lists and panels as cards on the page"
+                                            Command="{Binding Main.SelectLayoutCommand}" CommandParameter="Islands"
+                                            Tag="{Binding Main.LayoutId, Converter={StaticResource EqOnOff}, ConverterParameter=Islands}">
+                                        <StackPanel>
+                                            <!-- Three lists, each a card on the canvas -->
+                                            <Border Height="92" CornerRadius="7" Padding="7" Background="{DynamicResource CanvasBrush}">
+                                                <UniformGrid Rows="1">
+                                                    <Border CornerRadius="5" Margin="0,0,4,0" Background="{DynamicResource SurfaceBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                                        <StackPanel Margin="6">
+                                                            <Ellipse Width="6" Height="6" HorizontalAlignment="Left" Fill="{DynamicResource StatusTodoDotBrush}"/>
+                                                            <Border Height="4" CornerRadius="2" Margin="0,8,0,0" Background="{DynamicResource BorderBrush}"/>
+                                                            <Border Height="4" CornerRadius="2" Margin="0,5,8,0" Background="{DynamicResource BorderBrush}"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border CornerRadius="5" Margin="2,0" Background="{DynamicResource SurfaceBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                                        <StackPanel Margin="6">
+                                                            <Ellipse Width="6" Height="6" HorizontalAlignment="Left" Fill="{DynamicResource StatusDoingDotBrush}"/>
+                                                            <Border Height="4" CornerRadius="2" Margin="0,8,0,0" Background="{DynamicResource BorderBrush}"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border CornerRadius="5" Margin="4,0,0,0" Background="{DynamicResource SurfaceBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                                        <StackPanel Margin="6">
+                                                            <Ellipse Width="6" Height="6" HorizontalAlignment="Left" Fill="{DynamicResource StatusDoneDotBrush}"/>
+                                                            <Border Height="4" CornerRadius="2" Margin="0,8,0,0" Background="{DynamicResource BorderBrush}"/>
+                                                            <Border Height="4" CornerRadius="2" Margin="0,5,6,0" Background="{DynamicResource BorderBrush}"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </UniformGrid>
+                                            </Border>
+                                            <DockPanel Margin="2,9,2,2">
+                                                <Border DockPanel.Dock="Right" CornerRadius="4" Padding="6,1" VerticalAlignment="Center"
+                                                        Background="{DynamicResource AccentSoftAltBrush}"
+                                                        Visibility="{ui:ByLayout Islands=Visible, Flat=Collapsed}">
+                                                    <TextBlock Text="Current" FontSize="10" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource AccentDarkBrush}"/>
+                                                </Border>
+                                                <TextBlock FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}">
+                                                    <Run Text="Islands"/>
+                                                    <Run Text="Cards" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                                </TextBlock>
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource LayoutTile}" ToolTip="Lists and panels edge to edge, divided by borders"
+                                            Command="{Binding Main.SelectLayoutCommand}" CommandParameter="Flat"
+                                            Tag="{Binding Main.LayoutId, Converter={StaticResource EqOnOff}, ConverterParameter=Flat}">
+                                        <StackPanel>
+                                            <!-- The same three lists, run together under tinted headings -->
+                                            <Border Height="92" CornerRadius="7" ClipToBounds="True" BorderThickness="1"
+                                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                                                <UniformGrid Rows="1">
+                                                    <DockPanel>
+                                                        <Border DockPanel.Dock="Top" Height="16" Background="{DynamicResource StatusTodoTintBrush}"
+                                                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,1">
+                                                            <Ellipse Width="6" Height="6" Margin="6,0,0,0" HorizontalAlignment="Left" Fill="{DynamicResource StatusTodoDotBrush}"/>
+                                                        </Border>
+                                                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                                                            <StackPanel>
+                                                                <Border Height="18" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                                                                    <Border Height="4" CornerRadius="2" Margin="6,0,10,0" Background="{DynamicResource BorderBrush}"/>
+                                                                </Border>
+                                                                <Border Height="18" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                                                                    <Border Height="4" CornerRadius="2" Margin="6,0,16,0" Background="{DynamicResource BorderBrush}"/>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DockPanel>
+                                                    <DockPanel Background="{DynamicResource SurfaceMutedBrush}">
+                                                        <Border DockPanel.Dock="Top" Height="16" Background="{DynamicResource StatusDoingTintBrush}"
+                                                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,1">
+                                                            <Ellipse Width="6" Height="6" Margin="6,0,0,0" HorizontalAlignment="Left" Fill="{DynamicResource StatusDoingDotBrush}"/>
+                                                        </Border>
+                                                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                                                            <StackPanel>
+                                                                <Border Height="18" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                                                                    <Border Height="4" CornerRadius="2" Margin="6,0,12,0" Background="{DynamicResource BorderBrush}"/>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DockPanel>
+                                                    <DockPanel>
+                                                        <Border DockPanel.Dock="Top" Height="16" Background="{DynamicResource StatusDoneTintBrush}"
+                                                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                                                            <Ellipse Width="6" Height="6" Margin="6,0,0,0" HorizontalAlignment="Left" Fill="{DynamicResource StatusDoneDotBrush}"/>
+                                                        </Border>
+                                                        <StackPanel>
+                                                            <Border Height="18" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                                                                <Border Height="4" CornerRadius="2" Margin="6,0,10,0" Background="{DynamicResource BorderBrush}"/>
+                                                            </Border>
+                                                            <Border Height="18" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                                                                <Border Height="4" CornerRadius="2" Margin="6,0,14,0" Background="{DynamicResource BorderBrush}"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </UniformGrid>
+                                            </Border>
+                                            <DockPanel Margin="2,9,2,2">
+                                                <Border DockPanel.Dock="Right" CornerRadius="4" Padding="6,1" VerticalAlignment="Center"
+                                                        Background="{DynamicResource AccentSoftAltBrush}"
+                                                        Visibility="{ui:ByLayout Islands=Collapsed, Flat=Visible}">
+                                                    <TextBlock Text="Current" FontSize="10" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource AccentDarkBrush}"/>
+                                                </Border>
+                                                <TextBlock FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}">
+                                                    <Run Text="Flat"/>
+                                                    <Run Text="Bordered areas" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                                </TextBlock>
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Button>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Auto save -->
+                        <Border x:Name="SectionAutoSave" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Auto Save" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Save a task as you edit it and when you leave its page, instead of waiting for Save. A recording still running when a page closes is always kept."
+                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Off"
+                                            Command="{Binding Main.SetAutoSaveCommand}" CommandParameter="Off"
+                                            Tag="{Binding Main.IsAutoSave, Converter={StaticResource BoolOnOff}, ConverterParameter=invert}"/>
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="On" Margin="8,0,0,0"
+                                            Command="{Binding Main.SetAutoSaveCommand}" CommandParameter="On"
+                                            Tag="{Binding Main.IsAutoSave, Converter={StaticResource BoolOnOff}}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- AI model -->
+                        <Border x:Name="SectionAiModel" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:Icon Data="{StaticResource IconAiStar}" Size="13" StrokeThickness="0"
+                                                     Fill="{DynamicResource AiStarBrush}"/>
+                                            <TextBlock Text="AI model" Margin="6,0,0,0" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Runs on your CPU, for AI Import, Rewrite with AI, writing up dictation and summaries in exports. With no model installed, AI Import falls back to keyword rules."
+                                                   FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextSubtleBrush}"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Open model folder"
+                                            VerticalAlignment="Center" Command="{Binding OpenModelFolderCommand}"/>
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding Models}" Margin="0,12,0,0"
+                                              ItemTemplate="{StaticResource ModelRow}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tips -->
+                        <Border x:Name="SectionTips" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Tips" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="A short tip about a feature, now and then, at the foot of the sidebar."
+                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Off"
+                                            Command="{Binding Main.SetTipsCommand}" CommandParameter="Off"
+                                            Tag="{Binding Main.IsTipsOn, Converter={StaticResource BoolOnOff}, ConverterParameter=invert}"/>
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="On" Margin="8,0,0,0"
+                                            Command="{Binding Main.SetTipsCommand}" CommandParameter="On"
+                                            Tag="{Binding Main.IsTipsOn, Converter={StaticResource BoolOnOff}}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Sidebar GIF -->
+                        <Border x:Name="SectionGif" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Sidebar GIF" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Pick a GIF and it plays in a box under the tip. With none picked, the sidebar has no box. It only animates while MikuDo is in front of you, so it costs next to nothing."
+                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <!-- None chosen: one button to pick it -->
+                                <Button Grid.Column="1" Style="{StaticResource GhostButton}" VerticalAlignment="Center"
+                                        Command="{Binding Main.ChooseGifCommand}"
+                                        Visibility="{Binding Main.HasSidebarGif, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:Icon Data="{StaticResource IconImage}" Size="13" StrokeThickness="2"
+                                                 VerticalAlignment="Center" Stroke="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Text="Choose GIF…" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <!-- Chosen: a small preview, and ways to change or drop it -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                            Visibility="{Binding Main.HasSidebarGif, Converter={StaticResource Vis}}">
+                                    <Border Width="64" Height="36" CornerRadius="7" BorderThickness="1"
+                                            BorderBrush="{DynamicResource BorderSoftBrush}" Background="{DynamicResource SurfaceMutedBrush}">
+                                        <Grid ui:RoundedClip.Radius="6">
+                                            <ui:GifPlayer FilePath="{Binding Main.SidebarGifPath}"/>
+                                        </Grid>
+                                    </Border>
+                                    <Button Style="{StaticResource GhostButton}" Content="Change…" Margin="10,0,0,0"
+                                            Command="{Binding Main.ChooseGifCommand}"/>
+                                    <Button Style="{StaticResource GhostButton}" Content="Remove" Margin="8,0,0,0"
+                                            Command="{Binding Main.RemoveGifCommand}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Dictation -->
+                        <Border x:Name="SectionDictation" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <StackPanel>
+                                <TextBlock Text="Dictation" FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Speak on a task's page and your words go into its description. The speech model runs on your CPU, so nothing you say leaves this PC. Until one is downloaded, Dictate stays greyed out."
+                                           FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSubtleBrush}"/>
+
+                                <ItemsControl ItemsSource="{Binding SpeechModels}" Margin="0,12,0,0"
+                                              ItemTemplate="{StaticResource ModelRow}"/>
+
+                                <Grid x:Name="SectionDictationMode" Margin="0,6,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="200"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                        <TextBlock Text="Default dictation mode" FontSize="12.5" FontWeight="Bold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Exact puts your words in as spoken. Write up has the AI Import model turn them into a tidy description: filler words out, lists as bullet points. Every task page starts here; switching beside its Dictate button lasts until that page closes."
+                                                   FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        <TextBlock Text="Write up needs an AI Import model, above. Until one is installed, dictation is exact."
+                                                   FontSize="11" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource AccentDarkBrush}"
+                                                   Visibility="{Binding HasAiModel, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource ChoiceBoxButton}" Content="Exact"
+                                                Command="{Binding SetDictationModeCommand}" CommandParameter="Exact"
+                                                Tag="{Binding IsWriteUpOn, Converter={StaticResource BoolOnOff}, ConverterParameter=invert}"/>
+                                        <Button Style="{StaticResource ChoiceBoxButton}" Content="Write up" Margin="8,0,0,0"
+                                                Command="{Binding SetDictationModeCommand}" CommandParameter="WriteUp"
+                                                Tag="{Binding IsWriteUpOn, Converter={StaticResource BoolOnOff}}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Backup -->
+                        <Border x:Name="SectionBackup" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Database Backup" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Export or import a full backup of all your data"
+                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource SuccessButton}" Command="{Binding Main.ExportBackupCommand}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:Icon Data="{StaticResource IconExport}" Size="14" Stroke="{DynamicResource ButtonSuccessForegroundBrush}" StrokeThickness="2"/>
+                                            <TextBlock Text="Export" Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                                       FontWeight="Bold" Foreground="{DynamicResource ButtonSuccessForegroundBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource GhostButton}" Margin="10,0,0,0" Padding="15,9"
+                                            Command="{Binding Main.ImportBackupCommand}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:Icon Data="{StaticResource IconImport}" Size="14" StrokeThickness="1.9"
+                                                     Stroke="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="Import" Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <views:ShortcutsPanel x:Name="SectionShortcuts" DataContext="{Binding KeyboardShortcuts}"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

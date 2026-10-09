@@ -1,0 +1,304 @@
+<UserControl x:Class="MikuDo.Views.AddTaskDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             xmlns:vm="clr-namespace:MikuDo.ViewModels"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:BoolToOnOffConverter x:Key="BoolOnOff"/>
+        <conv:MultiEqualsToOnOffConverter x:Key="MultiEqOnOff"/>
+    </UserControl.Resources>
+
+    <!--
+        The shadow is a SoftShadow under the dialog, not an Effect on it. An
+        Effect is worked out again whenever anything it covers is redrawn, so
+        every caret blink, keystroke and scroll in the dialog would re-blur the
+        whole card. Both sit in this grid, so the entrance scales them together.
+    -->
+    <Grid RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+            <ScaleTransform/>
+        </Grid.RenderTransform>
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <Style.Triggers>
+                    <!-- The dialog stays in the tree and is only collapsed, so the
+                         entrance hangs off becoming visible, not off Loaded. -->
+                    <DataTrigger Binding="{Binding IsVisible, RelativeSource={RelativeSource Self}}" Value="True">
+                        <DataTrigger.EnterActions>
+                            <BeginStoryboard Storyboard="{StaticResource DialogIn}"/>
+                        </DataTrigger.EnterActions>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
+        <ui:SoftShadow CornerRadius="14" BlurRadius="60" ShadowDepth="24" ShadowOpacity="0.28"
+                       Color="{DynamicResource ShadowColor}"/>
+        <Border CornerRadius="14"
+                Background="{DynamicResource SurfaceBrush}"
+                ui:RoundedClip.Radius="14"
+                TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
+            <DockPanel>
+
+                <!-- Header -->
+                <Border DockPanel.Dock="Top" Padding="20,16" BorderBrush="{DynamicResource DividerBrush}"
+                        BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Add Task" FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock FontSize="11.5" Margin="0,2,0,0" Foreground="{DynamicResource TextSubtleBrush}">
+                                <Run Text="New task in"/><Run Text=" "/><Run Text="{Binding WorkspaceLabel, Mode=OneWay}"/><Run Text="."/>
+                            </TextBlock>
+                        </StackPanel>
+                        <Button Grid.Column="1" Style="{StaticResource IconButton}" Width="28" Height="28"
+                                ToolTip="Close"
+                                Command="{Binding DataContext.CloseAddTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <ui:Icon Data="{StaticResource IconClose}" Size="15" StrokeThickness="2"
+                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Footer -->
+                <Border DockPanel.Dock="Bottom" Padding="20,14" Background="{DynamicResource SurfaceMutedBrush}"
+                        BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Style="{StaticResource GhostButton}" Content="Cancel" Padding="14,9"
+                                Command="{Binding DataContext.CloseAddTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <Button Style="{StaticResource PrimaryButton}" Content="Create task" Padding="18,9" Margin="10,0,0,0"
+                                IsEnabled="{Binding CanCreate}" Command="{Binding CreateCommand}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Body: writing on the left, the compact pickers on the right -->
+                <Grid Margin="20,18,20,18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="280"/>
+                        <ColumnDefinition Width="330"/>
+                    </Grid.ColumnDefinitions>
+
+                    <DockPanel Grid.Column="0" Margin="0,0,20,0">
+                        <TextBlock DockPanel.Dock="Top" Text="Task name" FontSize="11" FontWeight="SemiBold"
+                                   Margin="0,0,0,6" Foreground="{DynamicResource TextSubtleBrush}"/>
+                        <TextBox x:Name="NameBox" DockPanel.Dock="Top" Style="{StaticResource InputBox}"
+                                 FontSize="14" FontWeight="SemiBold" Padding="12,11"
+                                 ui:Placeholder.Text="e.g. Q3 Evaluation"
+                                 Text="{Binding TaskName, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock DockPanel.Dock="Top" Text="Description" FontSize="11" FontWeight="SemiBold"
+                                   Margin="0,16,0,6" Foreground="{DynamicResource TextSubtleBrush}"/>
+                        <TextBox Style="{StaticResource TextAreaBox}"
+                                 ui:Placeholder.Text="Markdown supported"
+                                 Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
+
+                    <DockPanel Grid.Column="1">
+                        <StackPanel DockPanel.Dock="Top">
+
+                            <StackPanel Margin="0,0,0,14">
+                                <TextBlock Text="Status" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"
+                                           Foreground="{DynamicResource TextSubtleBrush}"/>
+                                <ItemsControl ItemsSource="{Binding StatusChoices}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource ChoiceChipButton}" Content="{Binding}"
+                                                    Margin="0,0,5,0" FontSize="11.5" Padding="10,5"
+                                                    Command="{Binding DataContext.PickStatusCommand,
+                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.Tag>
+                                                    <MultiBinding Converter="{StaticResource MultiEqOnOff}">
+                                                        <Binding/>
+                                                        <Binding Path="DataContext.StatusName"
+                                                                 RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                                    </MultiBinding>
+                                                </Button.Tag>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <StackPanel>
+                                <TextBlock Text="Priority" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"
+                                           Foreground="{DynamicResource TextSubtleBrush}"/>
+                                <ItemsControl ItemsSource="{Binding PriorityChoices}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource ChoiceChipButton}" Content="{Binding}"
+                                                    Margin="0,0,5,0" FontSize="11.5" Padding="9,5"
+                                                    Command="{Binding DataContext.PickPriorityCommand,
+                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.Tag>
+                                                    <MultiBinding Converter="{StaticResource MultiEqOnOff}">
+                                                        <Binding/>
+                                                        <Binding Path="DataContext.Priority"
+                                                                 RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                                    </MultiBinding>
+                                                </Button.Tag>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Labels -->
+                            <TextBlock Text="Labels" FontSize="11" FontWeight="SemiBold" Margin="0,16,0,6"
+                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <ItemsControl ItemsSource="{Binding Labels}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource ChoiceChipButton}" Margin="0,0,5,5" Padding="9,4"
+                                                Command="{Binding DataContext.ToggleLabelCommand,
+                                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Tag="{Binding IsChecked, Converter={StaticResource BoolOnOff}}">
+                                            <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBox Style="{StaticResource SmallInputBox}" Margin="0,2,0,0" Padding="10,6" FontSize="11.5"
+                                     ui:Placeholder.Text="Add a label, then Enter" KeyDown="LabelInput_KeyDown"
+                                     Text="{Binding CustomLabel, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <!-- Subtasks are links to tasks that already exist -->
+                            <TextBlock Text="Subtasks" FontSize="11" FontWeight="SemiBold" Margin="0,16,0,4"
+                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <TextBlock Text="Pick tasks that already exist. A subtask is a task." FontSize="10.5"
+                                       Margin="0,0,0,6" Foreground="{DynamicResource TextGhostSoftBrush}"/>
+
+                            <ItemsControl ItemsSource="{Binding SelectedSubtasks}" Margin="0,0,0,6">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="6" Padding="8,5" Margin="0,0,0,4"
+                                                Background="{DynamicResource AccentSoftBrush}"
+                                                BorderBrush="{DynamicResource AccentBorderBrush}" BorderThickness="1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Grid.Column="0" Width="6" Height="6" VerticalAlignment="Center"
+                                                         Fill="{Binding StatusForeground}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="7,0,6,0" FontSize="11.5"
+                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                <Button Grid.Column="2" Style="{StaticResource IconButton}" Width="17" Height="17"
+                                                        ToolTip="Remove"
+                                                        Command="{Binding DataContext.UnlinkSubtaskCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <ui:Icon Data="{StaticResource IconClose}" Size="9" StrokeThickness="2.6"
+                                                             Stroke="{DynamicResource TextFaintBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBox Style="{StaticResource SmallInputBox}" Padding="10,6" FontSize="11.5"
+                                     ui:Placeholder.Text="Search tasks…"
+                                     Text="{Binding SubtaskQuery, UpdateSourceTrigger=PropertyChanged, Delay=120}"/>
+                            <ItemsControl ItemsSource="{Binding SubtaskWorkspaces}" Margin="0,8,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource ChoiceChipButton}" Margin="0,0,5,5" Padding="8,3" FontSize="10.5"
+                                                MaxWidth="150" Content="{Binding Name}" ToolTip="{Binding Name}"
+                                                Tag="{Binding IsSelected, Converter={StaticResource BoolOnOff}}"
+                                                Command="{Binding DataContext.PickSubtaskWorkspaceCommand,
+                                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding SubtaskNote}" FontSize="11" Margin="2,1,2,0"
+                                       TextWrapping="Wrap" Foreground="{DynamicResource TextGhostBrush}"/>
+                        </StackPanel>
+
+                        <!-- The candidate list takes whatever height is left -->
+                        <Border Margin="0,6,0,0" CornerRadius="8" BorderThickness="1" MinHeight="90"
+                                BorderBrush="{DynamicResource BorderSoftBrush}"
+                                Background="{DynamicResource SurfaceMutedBrush}">
+                            <Grid>
+                                <!-- Virtualised: only the handful of rows on screen is
+                                     worth a visual tree. That needs the scroller inside
+                                     the ItemsControl, hence the template. ScrollUnit
+                                     keeps it scrolling by pixel rather than jumping a
+                                     whole row. -->
+                                <ItemsControl ItemsSource="{Binding SubtaskCandidates}" ui:WheelScroll.Pixels="84"
+                                              VirtualizingPanel.IsVirtualizing="True"
+                                              VirtualizingPanel.VirtualizationMode="Recycling"
+                                              VirtualizingPanel.ScrollUnit="Pixel">
+                                    <ItemsControl.Template>
+                                        <ControlTemplate TargetType="ItemsControl">
+                                            <ScrollViewer Padding="5" CanContentScroll="True"
+                                                          VerticalScrollBarVisibility="Auto">
+                                                <ItemsPresenter/>
+                                            </ScrollViewer>
+                                        </ControlTemplate>
+                                    </ItemsControl.Template>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <VirtualizingStackPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.Resources>
+                                        <DataTemplate DataType="{x:Type vm:LoadMoreRow}">
+                                            <Button Style="{StaticResource ShowMoreButton}" Content="{Binding Label}" Padding="0,9"
+                                                    ui:LoadWhenSeen.IsEnabled="True"
+                                                    Command="{Binding DataContext.LoadMoreCandidatesCommand,
+                                                              RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:WorkspaceHeading}">
+                                            <TextBlock Text="{Binding Label}" FontSize="10" FontWeight="Bold" Margin="9,9,9,3"
+                                                       TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextGhostBrush}"/>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:TaskOption}">
+                                            <Button Style="{StaticResource MenuRowButton}" Click="SubtaskCandidate_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                                             Fill="{Binding StatusForeground}"/>
+                                                    <ui:PriorityGlyph Margin="7,0,0,0" VerticalAlignment="Center"
+                                                                      Priority="{Binding Priority}" Fill="{Binding PriorityForeground}"
+                                                                      Ghost="{DynamicResource PriorityGhostBrush}"/>
+                                                    <TextBlock Text="{Binding Title}" Margin="7,0,0,0" FontSize="11.5"
+                                                               MaxWidth="240" TextTrimming="CharacterEllipsis"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.Resources>
+                                </ItemsControl>
+                            </Grid>
+                        </Border>
+                    </DockPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

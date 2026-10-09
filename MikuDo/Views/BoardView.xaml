@@ -1,0 +1,2010 @@
+<UserControl x:Class="MikuDo.Views.BoardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             xmlns:views="clr-namespace:MikuDo.Views"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:BoolToOnOffConverter x:Key="BoolOnOff"/>
+        <conv:EqualsToOnOffConverter x:Key="EqOnOff"/>
+        <conv:ExpandedToAngleConverter x:Key="Chevron"/>
+        <conv:DoneToDecorationsConverter x:Key="Strike"/>
+        <conv:DoneToForegroundConverter x:Key="DoneFg"/>
+        <conv:PairConverter x:Key="Pair"/>
+        <conv:MultiEqualsToOnOffConverter x:Key="MultiEqOnOff"/>
+        <conv:ShowIfBothConverter x:Key="ShowIfBoth"/>
+        <conv:PriorityToBrushConverter x:Key="PriorityFg"/>
+        <conv:PriorityToNameConverter x:Key="PriorityName"/>
+        <conv:OpenInViewConverter x:Key="OpenInView"/>
+
+        <!--
+            Priority on a card: the bars always, the name once one is set, in the
+            same footprint either way. A plain border rather than a button, since
+            every row carries one. Clicking it opens the priority and labels
+            editor for the card, or for the selection the card belongs to.
+        -->
+        <ControlTemplate x:Key="PriorityChip" TargetType="ContentControl">
+            <Border x:Name="chip" Tag="chip" CornerRadius="6" Padding="5,2" Cursor="Hand"
+                    Background="Transparent" VerticalAlignment="Center" HorizontalAlignment="Left"
+                    ToolTip="Priority and labels"
+                    MouseLeftButtonDown="PriorityChip_MouseDown" MouseLeftButtonUp="PriorityChip_Click">
+                <StackPanel Orientation="Horizontal">
+                    <ui:PriorityGlyph Priority="{Binding Priority}" Fill="{Binding PriorityForeground}"
+                                      Ghost="{DynamicResource PriorityGhostBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding PriorityName}" Margin="5,0,0,0" FontSize="10.5" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Foreground="{Binding PriorityForeground}"
+                               Visibility="{Binding HasPriority, Converter={StaticResource Vis}}"/>
+                </StackPanel>
+            </Border>
+            <ControlTemplate.Triggers>
+                <DataTrigger Binding="{Binding HasPriority}" Value="True">
+                    <Setter TargetName="chip" Property="Background" Value="{Binding PriorityBackground}"/>
+                </DataTrigger>
+                <Trigger SourceName="chip" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="chip" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- A row in a sort menu, the board's or one list's -->
+        <DataTemplate x:Key="SortOptionRow">
+            <Button Style="{StaticResource MenuRowButton}"
+                    Command="{Binding Board.PickSortCommand}"
+                    CommandParameter="{Binding}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:Icon Data="{StaticResource IconCheck}" Size="12" StrokeThickness="3">
+                        <ui:Icon.Style>
+                            <Style TargetType="ui:Icon">
+                                <Setter Property="Stroke" Value="Transparent"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                        <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ui:Icon.Style>
+                    </ui:Icon>
+                    <TextBlock Text="{Binding Label}" Margin="8,0,0,0" FontSize="12">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontWeight" Value="Medium"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+
+        <!--
+            A list's own search and sort, in its header. Only while every list is
+            on screen: a single-status tab shows one list, and the board's own
+            search and sort already govern it.
+        -->
+        <!-- A row in the subtask tree: hover paints a soft pill, the content stretches -->
+        <Style x:Key="TreeRowButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="hover" CornerRadius="6" Opacity="0" Background="{DynamicResource HoverBrush}"/>
+                            <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions><BeginStoryboard Storyboard="{StaticResource HoverIn}"/></Trigger.EnterActions>
+                                <Trigger.ExitActions><BeginStoryboard Storyboard="{StaticResource HoverOut}"/></Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            The subtasks grouped under a task while the board groups by parent:
+            a toggle with the count, then a row per subtask. A subtask with its
+            own subtasks opens in place, one level deeper.
+        -->
+        <ControlTemplate x:Key="SubtaskTree" TargetType="ContentControl">
+            <StackPanel>
+                <Button Style="{StaticResource TreeRowButton}" HorizontalAlignment="Left" Padding="5,3" Margin="-5,0,0,0"
+                        Command="{Binding ToggleGroupCommand}" ToolTip="Show or hide the subtasks">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:Icon Data="{StaticResource IconChevronRight}" Size="10" StrokeThickness="2.4"
+                                 Stroke="{DynamicResource TextMutedBrush}" RenderTransformOrigin="0.5,0.5">
+                            <ui:Icon.RenderTransform>
+                                <RotateTransform Angle="{Binding IsGroupExpanded, Converter={StaticResource Chevron}}"/>
+                            </ui:Icon.RenderTransform>
+                        </ui:Icon>
+                        <TextBlock Text="{Binding GroupLabel}" Margin="6,0,0,0" FontSize="11" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Button>
+                <Border Margin="4,3,0,0" Padding="6,0,0,0" BorderThickness="1.5,0,0,0"
+                        BorderBrush="{DynamicResource DividerBrush}"
+                        Visibility="{Binding IsGroupExpanded, Converter={StaticResource Vis}}">
+                    <ItemsControl ItemsSource="{Binding SubRows}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="{Binding Indent}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="18"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Style="{StaticResource IconButton}" Width="18" Height="18"
+                                            Command="{Binding ToggleCommand}" ToolTip="Show or hide its subtasks"
+                                            Visibility="{Binding HasChildren, Converter={StaticResource Vis}}">
+                                        <ui:Icon Data="{StaticResource IconChevronRight}" Size="9" StrokeThickness="2.4"
+                                                 Stroke="{DynamicResource TextFaintBrush}" RenderTransformOrigin="0.5,0.5">
+                                            <ui:Icon.RenderTransform>
+                                                <RotateTransform Angle="{Binding IsExpanded, Converter={StaticResource Chevron}}"/>
+                                            </ui:Icon.RenderTransform>
+                                        </ui:Icon>
+                                    </Button>
+                                    <Button Grid.Column="1" Style="{StaticResource TreeRowButton}"
+                                            Command="{Binding Card.Board.OpenTaskCommand}" CommandParameter="{Binding Card}"
+                                            ToolTip="{Binding Card.Title}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse Width="6" Height="6" VerticalAlignment="Center" Fill="{Binding Card.StatusForeground}"/>
+                                            <ui:PriorityGlyph Grid.Column="1" Margin="7,0,0,0" VerticalAlignment="Center"
+                                                              Priority="{Binding Card.Priority}" Fill="{Binding Card.PriorityForeground}"
+                                                              Ghost="{DynamicResource PriorityGhostBrush}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Card.Title}" Margin="7,0,0,0" FontSize="12"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                       TextDecorations="{Binding Card.IsDone, Converter={StaticResource Strike}}"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <ui:CommentCount Grid.Column="3" Count="{Binding Card.CommentCount}" LeadingGap="8"
+                                                             VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding Card.StatusName}" Margin="8,0,0,0" FontSize="10.5"
+                                                       FontWeight="SemiBold" VerticalAlignment="Center"
+                                                       Foreground="{Binding Card.StatusForeground}"/>
+                                        </Grid>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+            </StackPanel>
+        </ControlTemplate>
+
+        <!-- Builds the tree only for a task that has subtasks under it; every other card pays nothing -->
+        <Style x:Key="SubtaskTreeHost" TargetType="ContentControl">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasGroupChildren}" Value="True">
+                    <Setter Property="Template" Value="{StaticResource SubtaskTree}"/>
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!--
+            The strip beside a card's grip while a card is dragged over it: only a
+            drop here links. The card's content slides right to make room, so the
+            strip covers nothing. Dashed while the pointer is elsewhere on the
+            card; once it is on the strip the outline turns solid, the tint
+            deepens a little and the whole card is outlined.
+        -->
+        <ControlTemplate x:Key="LinkTarget" TargetType="ContentControl">
+            <Grid>
+                <Border x:Name="outline" CornerRadius="8" BorderThickness="1.5" Visibility="Collapsed"
+                        BorderBrush="{DynamicResource AccentBorderStrongBrush}"/>
+                <Grid x:Name="strip" Width="{x:Static views:BoardView.LinkZoneWidth}" HorizontalAlignment="Left"
+                      Margin="{TemplateBinding Padding}" Opacity="0">
+                    <Rectangle x:Name="edge" RadiusX="8" RadiusY="8" StrokeThickness="1.5" StrokeDashArray="3 2"
+                               Fill="{DynamicResource AccentSoftBrush}" Stroke="{DynamicResource AccentBorderStrongBrush}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="6,4">
+                        <ui:Icon x:Name="clip" Data="{StaticResource IconPaperclip}" Size="13" StrokeThickness="2.1"
+                                 VerticalAlignment="Center" Stroke="{DynamicResource AccentBrush}"/>
+                        <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="lead" Text="Drag here" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+                            <TextBlock x:Name="rest" Text="to link as subtask" FontSize="10" FontWeight="Medium"
+                                       Foreground="{DynamicResource AccentBrush}" Opacity="0.8"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsVisible" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="strip" Storyboard.TargetProperty="Opacity"
+                                                 To="1" Duration="0:0:0.14"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                </Trigger>
+                <DataTrigger Binding="{Binding DropInto}" Value="True">
+                    <Setter TargetName="outline" Property="Visibility" Value="Visible"/>
+                    <Setter TargetName="edge" Property="Fill" Value="{DynamicResource AccentSoftAltBrush}"/>
+                    <Setter TargetName="edge" Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                    <Setter TargetName="edge" Property="StrokeDashArray" Value="{x:Null}"/>
+                    <Setter TargetName="lead" Property="Text" Value="Release to link"/>
+                    <Setter TargetName="rest" Property="Text" Value="as a subtask"/>
+                </DataTrigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!--
+            Room for the link strip: beside a card's grip, it widens while the
+            strip shows and pushes the card's content right.
+        -->
+        <Style x:Key="LinkZoneSpace" TargetType="Border">
+            <Setter Property="Width" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding LinkZoneShown}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="Width" Duration="0:0:0.14"
+                                                 To="{x:Static views:BoardView.LinkZoneSpace}"
+                                                 EasingFunction="{StaticResource EaseOut}"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                    <DataTrigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="Width" To="0" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.ExitActions>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- A card's title while it is renamed on the card: Enter keeps it, Esc drops it, clicking away keeps it -->
+        <ControlTemplate x:Key="TitleEditor" TargetType="ContentControl">
+            <TextBox Style="{StaticResource SmallInputBox}" FontSize="{TemplateBinding FontSize}" FontWeight="SemiBold"
+                     Padding="6,1" Margin="-7,-3,0,-3" BorderBrush="{DynamicResource AccentBorderStrongBrush}"
+                     Text="{Binding RenameText, UpdateSourceTrigger=PropertyChanged}"
+                     Loaded="TitleEditor_Loaded" PreviewKeyDown="TitleEditor_PreviewKeyDown"
+                     LostKeyboardFocus="TitleEditor_LostKeyboardFocus"/>
+        </ControlTemplate>
+
+        <!-- Built only on the card being renamed; every other card pays nothing -->
+        <Style x:Key="TitleEditorHost" TargetType="ContentControl">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRenaming}" Value="True">
+                    <Setter Property="Template" Value="{StaticResource TitleEditor}"/>
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The title gives way to the box, keeping its room so the card does not move -->
+        <Style x:Key="HideWhileRenaming" TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRenaming}" Value="True">
+                    <Setter Property="Visibility" Value="Hidden"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Built only on the card being hovered with a drag; every other card pays nothing -->
+        <Style x:Key="LinkTargetHost" TargetType="ContentControl">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding LinkZoneShown}" Value="True">
+                    <Setter Property="Template" Value="{StaticResource LinkTarget}"/>
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <ControlTemplate x:Key="ListTools" TargetType="ContentControl">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                            Visibility="{Binding Board.IsAllTasks, Converter={StaticResource Vis}}">
+                    <Button Style="{StaticResource IconButton}" ToolTip="Search this list"
+                            Command="{Binding Board.ToggleColumnSearchCommand}" CommandParameter="{Binding}">
+                        <ui:Icon Data="{StaticResource IconSearch}" Size="13" StrokeThickness="2.1">
+                            <ui:Icon.Style>
+                                <Style TargetType="ui:Icon">
+                                    <Setter Property="Stroke" Value="{DynamicResource TextFaintBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSearchOpen}" Value="True">
+                                            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ui:Icon.Style>
+                        </ui:Icon>
+                    </Button>
+                    <Grid>
+                        <Button Style="{StaticResource IconButton}" ToolTip="{Binding SortLabel}"
+                                ToolTipService.ShowOnDisabled="True"
+                                Command="{Binding Board.ToggleColumnSortCommand}" CommandParameter="{Binding}">
+                            <ui:Icon Data="{StaticResource IconSort}" Size="13" StrokeThickness="2.1">
+                                <ui:Icon.Style>
+                                    <Style TargetType="ui:Icon">
+                                        <Setter Property="Stroke" Value="{DynamicResource TextFaintBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasOwnSort}" Value="True">
+                                                <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ui:Icon.Style>
+                            </ui:Icon>
+                        </Button>
+                        <!-- Tag on the host names its view: "Kanban" or "List" -->
+                        <Popup StaysOpen="False" AllowsTransparency="True"
+                               Placement="Bottom" HorizontalOffset="-160" VerticalOffset="4" PopupAnimation="None">
+                            <Popup.IsOpen>
+                                <MultiBinding Converter="{StaticResource OpenInView}" Mode="TwoWay">
+                                    <Binding Path="IsSortOpen"/>
+                                    <Binding Path="Board.ViewMode" Mode="OneWay"/>
+                                    <Binding Path="Tag" Mode="OneWay" RelativeSource="{RelativeSource TemplatedParent}"/>
+                                </MultiBinding>
+                            </Popup.IsOpen>
+                            <ContentControl Style="{StaticResource Popover}" Width="200" Padding="5" Margin="10">
+                                <StackPanel>
+                                    <TextBlock Text="SORT THIS LIST" FontSize="10" FontWeight="Bold" Margin="9,6,9,4"
+                                               Foreground="{DynamicResource TextGhostBrush}"/>
+                                    <ItemsControl ItemsSource="{Binding SortOptions}"
+                                                  ItemTemplate="{StaticResource SortOptionRow}"/>
+                                    <!-- Only while this list has an order of its own -->
+                                    <Button Style="{StaticResource MenuRowButton}"
+                                            Command="{Binding Board.ResetColumnSortCommand}" CommandParameter="{Binding}"
+                                            ToolTip="This list goes back to sorting like the rest of the board"
+                                            Visibility="{Binding HasOwnSort, Converter={StaticResource Vis}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:Icon Data="{StaticResource IconUndo}" Size="12" StrokeThickness="1.9"
+                                                     Stroke="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="Use the board's order" Margin="8,0,0,0" FontSize="12"
+                                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </ContentControl>
+                        </Popup>
+                    </Grid>
+                </StackPanel>
+
+                <!-- A list's own actions, there in every tab -->
+                <Button Style="{StaticResource IconButton}"
+                        ToolTip="Suggest labels with AI: Bug, Enhancement, Feature or Think About for each task here without one"
+                        Command="{Binding Board.SuggestColumnLabelsCommand}" CommandParameter="{Binding}">
+                    <ui:Icon Data="{StaticResource IconAiStar}" Size="13" StrokeThickness="0"
+                             Fill="{DynamicResource AiStarBrush}"/>
+                </Button>
+                <Button Style="{StaticResource IconButton}" ToolTip="Export this list to Markdown"
+                        Command="{Binding Board.ExportColumnCommand}" CommandParameter="{Binding}">
+                    <ui:Icon Data="{StaticResource IconExport}" Size="13" StrokeThickness="2"
+                             Stroke="{DynamicResource TextFaintBrush}"/>
+                </Button>
+            </StackPanel>
+        </ControlTemplate>
+
+        <!-- The search box a list opens under its header -->
+        <ControlTemplate x:Key="ListSearch" TargetType="ContentControl">
+            <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}"
+                    BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                <Border.Visibility>
+                    <MultiBinding Converter="{StaticResource ShowIfBoth}">
+                        <Binding Path="IsSearchOpen"/>
+                        <Binding Path="Board.IsAllTasks"/>
+                    </MultiBinding>
+                </Border.Visibility>
+                <Border CornerRadius="8" Padding="9,5" Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource AccentBorderBrush}" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ui:Icon Grid.Column="0" Data="{StaticResource IconSearch}" Size="13" StrokeThickness="2"
+                                 Stroke="{DynamicResource TextFaintBrush}" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" Style="{StaticResource InputBox}" Margin="7,0,0,0" Padding="0"
+                                 BorderThickness="0" Background="Transparent" FontSize="12"
+                                 ui:Placeholder.Text="{Binding Name, StringFormat=Search {0}…}"
+                                 IsVisibleChanged="ListSearch_IsVisibleChanged" KeyDown="ListSearch_KeyDown"
+                                 Text="{Binding Query, UpdateSourceTrigger=PropertyChanged, Delay=140}"/>
+                        <Button Grid.Column="2" Style="{StaticResource IconButton}" Width="16" Height="16"
+                                ToolTip="Clear" Command="{Binding Board.ClearColumnSearchCommand}" CommandParameter="{Binding}"
+                                Visibility="{Binding HasQuery, Converter={StaticResource Vis}}">
+                            <ui:Icon Data="{StaticResource IconClose}" Size="9" StrokeThickness="2.4"
+                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                        </Button>
+                    </Grid>
+                </Border>
+            </Border>
+        </ControlTemplate>
+
+        <!-- Label pill -->
+        <DataTemplate x:Key="TagChipTemplate">
+            <Border CornerRadius="6" Padding="7,3" Margin="0,0,6,6" Background="{Binding Background}">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="5" Height="5" Fill="{Binding Foreground}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Label}" Margin="5,0,0,0" FontSize="10.5" FontWeight="SemiBold"
+                               Foreground="{Binding Foreground}"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- The ⋯ menu shared by all three views. Every action applies to the
+             whole selection when this card is part of it. -->
+        <ControlTemplate x:Key="CardMenuTemplate" TargetType="ContentControl">
+            <Grid>
+                <Button Style="{StaticResource IconButton}"
+                        Command="{Binding Board.ToggleCardMenuCommand}"
+                        CommandParameter="{Binding}" ToolTip="Task actions">
+                    <ui:Icon Data="{StaticResource IconDotsHorizontal}" Size="15"
+                             Fill="{DynamicResource TextGhostSoftBrush}" StrokeThickness="0"/>
+                </Button>
+                <Popup IsOpen="{Binding IsMenuOpen, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
+                       Placement="Bottom" HorizontalOffset="-168" VerticalOffset="2" PopupAnimation="None">
+                    <ContentControl Style="{StaticResource Popover}" Width="196" Padding="5" Margin="10">
+                        <StackPanel>
+                            <Button Style="{StaticResource MenuRowButton}" Content="Open task"
+                                    Command="{Binding Board.OpenTaskCommand}"
+                                    CommandParameter="{Binding}"/>
+                            <Button Style="{StaticResource MenuRowButton}" Content="Rename"
+                                    Command="{Binding Board.StartRenameCommand}"
+                                    CommandParameter="{Binding}"/>
+                            <Button Style="{StaticResource MenuRowButton}" Content="Priority and labels…"
+                                    Click="EditCard_Click"/>
+                            <Button Style="{StaticResource MenuRowButton}" Content="Duplicate"
+                                    Command="{Binding Board.DuplicateTaskCommand}"
+                                    CommandParameter="{Binding}"/>
+                            <Button Style="{StaticResource MenuRowButton}" Content="{Binding MoveToALabel}"
+                                    Command="{Binding Board.MoveCardToStatusCommand}">
+                                <Button.CommandParameter>
+                                    <MultiBinding Converter="{StaticResource Pair}">
+                                        <Binding/>
+                                        <Binding Path="OtherColumnA"/>
+                                    </MultiBinding>
+                                </Button.CommandParameter>
+                            </Button>
+                            <Button Style="{StaticResource MenuRowButton}" Content="{Binding MoveToBLabel}"
+                                    Command="{Binding Board.MoveCardToStatusCommand}">
+                                <Button.CommandParameter>
+                                    <MultiBinding Converter="{StaticResource Pair}">
+                                        <Binding/>
+                                        <Binding Path="OtherColumnB"/>
+                                    </MultiBinding>
+                                </Button.CommandParameter>
+                            </Button>
+                            <Button Style="{StaticResource MenuRowButton}" Content="Mark all subtasks done"
+                                    Visibility="{Binding HasOpenSubtasks, Converter={StaticResource Vis}}"
+                                    Command="{Binding Board.CompleteSubtasksCommand}"
+                                    CommandParameter="{Binding}"/>
+
+                            <Border Height="1" Margin="4,5" Background="{DynamicResource DividerSoftBrush}"/>
+                            <TextBlock Text="MOVE TO WORKSPACE" FontSize="10" FontWeight="Bold" Margin="9,4,9,2"
+                                       Foreground="{DynamicResource TextGhostBrush}"/>
+                            <ItemsControl ItemsSource="{Binding Board.MoveTargets}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource MenuRowButton}"
+                                                Command="{Binding DataContext.Board.MoveToWorkspaceCommand,
+                                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}">
+                                            <Button.CommandParameter>
+                                                <MultiBinding Converter="{StaticResource Pair}">
+                                                    <Binding Path="DataContext"
+                                                             RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                    <Binding/>
+                                                </MultiBinding>
+                                            </Button.CommandParameter>
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Icon Data="{StaticResource IconWorkspace}" Size="12" StrokeThickness="1.7"
+                                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Text="{Binding Name}" Margin="8,0,0,0" FontSize="12"
+                                                           MaxWidth="140" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border Height="1" Margin="4,5" Background="{DynamicResource DividerSoftBrush}"/>
+                            <Button Style="{StaticResource MenuRowButton}" Content="Export to Markdown"
+                                    Command="{Binding Board.ExportCardsCommand}"
+                                    CommandParameter="{Binding}"/>
+                            <Button Style="{StaticResource MenuRowButton}" Content="Delete"
+                                    Foreground="{DynamicResource DangerBrush}"
+                                    Command="{Binding Board.TrashTaskCommand}"
+                                    CommandParameter="{Binding}"/>
+                        </StackPanel>
+                    </ContentControl>
+                </Popup>
+            </Grid>
+        </ControlTemplate>
+
+        <!-- Inline actions plus the ⋯ menu, shared by kanban and list. Each one
+             applies to the whole selection when this card is part of it. -->
+        <ControlTemplate x:Key="CardActionsTemplate" TargetType="ContentControl">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
+                <Button Style="{StaticResource IconButton}" Width="20" Height="20"
+                        ToolTip="Move to the previous column"
+                        Visibility="{Binding CanRetreat, Converter={StaticResource Vis}}"
+                        Command="{Binding Board.RetreatCardCommand}" CommandParameter="{Binding}">
+                    <ui:Icon Data="{StaticResource IconArrowLeft}" Size="13" StrokeThickness="2"
+                             Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                </Button>
+                <Button Style="{StaticResource IconButton}" Width="20" Height="20"
+                        ToolTip="Move to the next column"
+                        Visibility="{Binding CanAdvance, Converter={StaticResource Vis}}"
+                        Command="{Binding Board.AdvanceCardCommand}" CommandParameter="{Binding}">
+                    <ui:Icon Data="{StaticResource IconArrowRight}" Size="13" StrokeThickness="2"
+                             Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                </Button>
+                <Button Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="Duplicate"
+                        Command="{Binding Board.DuplicateTaskCommand}" CommandParameter="{Binding}">
+                    <ui:Icon Data="{StaticResource IconDuplicate}" Size="12" StrokeThickness="1.7"
+                             Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                </Button>
+                <Button Style="{StaticResource IconButton}" Width="20" Height="20" ToolTip="Delete"
+                        Command="{Binding Board.TrashTaskCommand}" CommandParameter="{Binding}">
+                    <ui:Icon Data="{StaticResource IconTrash}" Size="13" StrokeThickness="1.7"
+                             Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                </Button>
+                <ContentControl Template="{StaticResource CardMenuTemplate}"/>
+            </StackPanel>
+        </ControlTemplate>
+
+        <!--
+            The actions are built when the pointer reaches the row.
+
+            Five templated buttons and a popup are most of what a row costs to
+            build, and a board pays that for every row before any of them is
+            pointed at. Applying the template from a trigger defers it to the
+            row actually being used. The width is held either way: four 20px
+            buttons and the 22px menu, so nothing moves when they appear.
+        -->
+        <!-- A table row's way to add a label, at the end of its labels. Its slot is always
+             kept, so pointing at a row moves nothing; the button is built only then. It opens
+             the editor the priority chip opens, where a new label can be typed. -->
+        <ControlTemplate x:Key="TableAddLabelTemplate" TargetType="ContentControl">
+            <Button Style="{StaticResource IconButton}" Width="22" Height="22" ToolTip="Add a label" Click="AddLabel_Click">
+                <ui:Icon Data="{StaticResource IconPlus}" Size="11" StrokeThickness="2.4" Stroke="{DynamicResource TextFaintBrush}"/>
+            </Button>
+        </ControlTemplate>
+
+        <Style x:Key="TableAddLabel" TargetType="ContentControl">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Style.Triggers>
+                <DataTrigger Value="True"
+                             Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type Border}}}">
+                    <Setter Property="Template" Value="{StaticResource TableAddLabelTemplate}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The icon of a card's corner label: subtasks, or a paperclip when it counts attachments -->
+        <Style x:Key="CardSubtitleIcon" TargetType="ui:Icon">
+            <Setter Property="Size" Value="13"/>
+            <Setter Property="StrokeThickness" Value="1.8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Stroke" Value="{DynamicResource TextFaintBrush}"/>
+            <Setter Property="Data" Value="{StaticResource IconSubtasks}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SubtitleIsAttachments}" Value="True">
+                    <Setter Property="Data" Value="{StaticResource IconPaperclip}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CardActions" TargetType="ContentControl">
+            <Setter Property="Width" Value="102"/>
+            <Style.Triggers>
+                <DataTrigger Value="True"
+                             Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type Border}}}">
+                    <Setter Property="Template" Value="{StaticResource CardActionsTemplate}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- A list's heading in the List view, which opens and shuts the list. Pointed
+             at, it shows a small pill around itself only: on the plain page a soft
+             grey, on a Flat heading's tint the page colour. The negative margin keeps
+             the chevron where it sits, the pill's padding reaching out past it. -->
+        <Style x:Key="ListHeadingButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Margin" Value="-6,0,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="pill" CornerRadius="7" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="pill" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                    <Condition Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="pill" Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                            </MultiDataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The line between two cells of the table in Flat. It runs the row's full
+             height, but stops at the cells when a subtask tree opens under the row. -->
+        <Style x:Key="TableCellLine" TargetType="Rectangle">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Setter Property="Fill" Value="{DynamicResource DividerSoftBrush}"/>
+            <Setter Property="Margin" Value="0,-11,0,-11"/>
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasGroupChildren}" Value="True">
+                    <Setter Property="Margin" Value="0,-11,0,0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The line between two of the table's headings in Flat, a step stronger than the rows' -->
+        <Style x:Key="TableHeadLine" TargetType="Rectangle">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Setter Property="Fill" Value="{DynamicResource DividerBrush}"/>
+            <Setter Property="Margin" Value="0,-11,0,-11"/>
+            <Setter Property="Visibility" Value="{ui:ByLayout Islands=Collapsed, Flat=Visible}"/>
+        </Style>
+
+        <!-- A row of the table -->
+        <DataTemplate x:Key="TableRow">
+            <Border BorderThickness="0,0,0,1"
+                    Padding="{ui:ByLayout Islands='16,12', Flat='20,11'}" MouseLeftButtonUp="Card_Click"
+                    ContextMenuOpening="Card_ContextMenuOpening">
+                <Border.RenderTransform>
+                    <TranslateTransform/>
+                </Border.RenderTransform>
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource DividerSoftBrush}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True"/>
+                                    <Condition Binding="{Binding (ItemsControl.AlternationIndex),
+                                         RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="1"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                            </MultiDataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                <Setter Property="BorderThickness" Value="3,0,0,1"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="0.8*"/>
+                            <ColumnDefinition Width="1.2*"/>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="0.7*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Rectangle Grid.Column="0" Style="{StaticResource TableCellLine}"/>
+                        <Rectangle Grid.Column="1" Style="{StaticResource TableCellLine}"/>
+                        <Rectangle Grid.Column="2" Style="{StaticResource TableCellLine}"/>
+                        <Rectangle Grid.Column="3" Style="{StaticResource TableCellLine}"/>
+                        <Rectangle Grid.Column="4" Style="{StaticResource TableCellLine}"/>
+
+                        <StackPanel Grid.Column="0" Margin="{ui:ByLayout Islands='0,0,10,0', Flat='0,0,16,0'}" VerticalAlignment="Center">
+                            <DockPanel>
+                                <ui:CommentCount DockPanel.Dock="Right" Count="{Binding CommentCount}" LeadingGap="8"
+                                                 VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <Grid>
+                                    <TextBlock Text="{Binding Title}" FontSize="{ui:ByLayout Islands=12.5, Flat=13}"
+                                               FontWeight="{ui:ByLayout Islands=SemiBold, Flat=Bold}"
+                                               TextTrimming="CharacterEllipsis" Style="{StaticResource HideWhileRenaming}"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <ContentControl Style="{StaticResource TitleEditorHost}" FontSize="12.5"/>
+                                </Grid>
+                            </DockPanel>
+                            <TextBlock Text="{Binding Description}" FontSize="11" Margin="0,2,0,0"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextSubtleBrush}"
+                                       Visibility="{Binding Description, Converter={StaticResource Vis}}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                    Margin="{ui:ByLayout Islands=0, Flat='16,0'}">
+                            <Ellipse Width="6" Height="6" Fill="{Binding StatusForeground}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding StatusName}" Margin="6,0,0,0" FontSize="11.5"
+                                       FontWeight="SemiBold" Foreground="{Binding StatusForeground}"/>
+                        </StackPanel>
+
+                        <ContentControl Grid.Column="2" Template="{StaticResource PriorityChip}" Margin="{ui:ByLayout Islands=0, Flat='11,0,16,0'}"/>
+
+                        <WrapPanel Grid.Column="3" VerticalAlignment="Center" Margin="{ui:ByLayout Islands=0, Flat='16,0,16,-6'}">
+                            <ItemsControl ItemsSource="{Binding Tags}" ItemTemplate="{StaticResource TagChipTemplate}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                            <!-- Lined up with the chips, whose margin leaves six pixels under each -->
+                            <ContentControl Style="{StaticResource TableAddLabel}" Margin="-2,-2,0,4"/>
+                        </WrapPanel>
+
+                        <TextBlock Grid.Column="4" Text="{Binding SubtitleLabel}" FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                   Margin="{ui:ByLayout Islands=0, Flat='16,0'}"
+                                   VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="5" Text="{Binding ProgressLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                   Margin="{ui:ByLayout Islands=0, Flat='16,0,0,0'}"
+                                   TextAlignment="Right" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </Grid>
+                    <ContentControl Margin="0,8,0,0" MaxWidth="560" HorizontalAlignment="Left"
+                                    Style="{StaticResource SubtaskTreeHost}"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+        </UserControl.Resources>
+
+        <Grid Background="{DynamicResource SurfaceBrush}"
+              TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- ═══ Header ═══ -->
+            <Grid Grid.Row="0" Margin="20,16,20,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="{Binding WorkspaceName}" Style="{StaticResource PageTitle}"
+                           VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="18,0,0,0">
+                    <Button Style="{StaticResource ViewTabButton}" Command="{Binding SetViewModeCommand}" CommandParameter="Kanban"
+                            Tag="{Binding ViewMode, Converter={StaticResource EqOnOff}, ConverterParameter=Kanban}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconKanban}" Size="15"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <TextBlock Text="Kanban" Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12.5"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                       FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ViewTabButton}" Command="{Binding SetViewModeCommand}" CommandParameter="List"
+                            Tag="{Binding ViewMode, Converter={StaticResource EqOnOff}, ConverterParameter=List}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconList}" Size="15"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <TextBlock Text="List" Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12.5"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                       FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ViewTabButton}" Command="{Binding SetViewModeCommand}" CommandParameter="Table"
+                            Tag="{Binding ViewMode, Converter={StaticResource EqOnOff}, ConverterParameter=Table}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconTable}" Size="15"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <TextBlock Text="Table" Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12.5"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                       FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource PrimaryButton}"
+                            Command="{Binding DataContext.OpenAddTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconPlus}" Size="13" Stroke="{DynamicResource ButtonPrimaryForegroundBrush}" StrokeThickness="2.2"/>
+                            <TextBlock Text="Add Task" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                       FontWeight="Bold" Foreground="{DynamicResource ButtonPrimaryForegroundBrush}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource SoftAccentButton}" Margin="8,0,0,0"
+                            Command="{Binding DataContext.OpenAiImportCommand, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconAiStar}" Size="14" StrokeThickness="0" Fill="{DynamicResource AiStarBrush}"/>
+                            <TextBlock Text="AI Import Tasks" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                       FontWeight="Bold" Foreground="{DynamicResource AccentDarkBrush}"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- ═══ Toolbar ═══ -->
+            <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Replaces the toolbar while cards are picked out, so the bulk
+                         actions sit where the eye already is -->
+                    <Border Panel.ZIndex="1" Margin="-20,-14" Padding="20,14"
+                            Background="{DynamicResource AccentSoftBrush}"
+                            Visibility="{Binding HasSelection, Converter={StaticResource Vis}}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SelectionLabel}" VerticalAlignment="Center" FontSize="12.5"
+                                       FontWeight="Bold" Foreground="{DynamicResource AccentDarkBrush}"/>
+                            <Button Style="{StaticResource GhostButton}" Margin="14,0,0,0" Padding="11,7"
+                                    Command="{Binding RetreatSelectionCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:Icon Data="{StaticResource IconArrowLeft}" Size="13" StrokeThickness="2"
+                                             Stroke="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Text="Move left" Margin="6,0,0,0" VerticalAlignment="Center"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="11,7"
+                                    Command="{Binding AdvanceSelectionCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:Icon Data="{StaticResource IconArrowRight}" Size="13" StrokeThickness="2"
+                                             Stroke="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Text="Move right" Margin="6,0,0,0" VerticalAlignment="Center"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="11,7"
+                                    ToolTip="Set the priority and labels of every selected task"
+                                    Command="{Binding EditSelectionCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:PriorityGlyph Priority="High" VerticalAlignment="Center"
+                                                      Fill="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Text="Priority &amp; labels" Margin="6,0,0,0" VerticalAlignment="Center"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Button>
+                            <Grid Margin="8,0,0,0">
+                                <Button Style="{StaticResource GhostButton}" Padding="11,7"
+                                        Command="{Binding ToggleMoveMenuCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:Icon Data="{StaticResource IconWorkspace}" Size="13" StrokeThickness="1.8"
+                                                 Stroke="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Text="Move to…" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    </StackPanel>
+                                </Button>
+                                <Popup IsOpen="{Binding IsMoveMenuOpen, Mode=TwoWay}" StaysOpen="False"
+                                       AllowsTransparency="True" Placement="Bottom" VerticalOffset="4" PopupAnimation="None">
+                                    <ContentControl Style="{StaticResource Popover}" Width="200" Padding="5" Margin="10">
+                                        <StackPanel>
+                                            <TextBlock Text="MOVE TO WORKSPACE" FontSize="10" FontWeight="Bold" Margin="9,6,9,4"
+                                                       Foreground="{DynamicResource TextGhostBrush}"/>
+                                            <ItemsControl ItemsSource="{Binding MoveTargets}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Style="{StaticResource MenuRowButton}" Content="{Binding Name}"
+                                                                Command="{Binding DataContext.MoveSelectionToWorkspaceCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ContentControl>
+                            </Popup>
+                        </Grid>
+                        <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="11,7"
+                                ToolTip="Suggest Bug, Enhancement, Feature or Think About for each selected task without one"
+                                Command="{Binding SuggestLabelsCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Icon Data="{StaticResource IconAiStar}" Size="12" StrokeThickness="0"
+                                         Fill="{DynamicResource AiStarBrush}"/>
+                                <TextBlock Text="Suggest labels" Margin="6,0,0,0" VerticalAlignment="Center"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="11,7"
+                                Command="{Binding ExportCardsCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Icon Data="{StaticResource IconExport}" Size="13" StrokeThickness="1.9"
+                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Text="Export" Margin="6,0,0,0" VerticalAlignment="Center"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource DangerButton}" Margin="8,0,0,0" Padding="11,7"
+                                Content="Delete" FontSize="12"
+                                Command="{Binding TrashSelectionCommand}"/>
+                        <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="11,7"
+                                Content="Clear" FontSize="12"
+                                Command="{Binding ClearSelectionCommand}"/>
+                        <TextBlock Text="Ctrl-click a card to add or remove it" Margin="14,0,0,0"
+                                   VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="0" MinWidth="180" CornerRadius="9" Padding="11,7"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ui:Icon Grid.Column="0" Data="{StaticResource IconSearch}" Size="14" StrokeThickness="2"
+                                 Stroke="{DynamicResource TextFaintBrush}" VerticalAlignment="Center"/>
+                        <TextBox x:Name="BoardSearchBox" Grid.Column="1" Style="{StaticResource InputBox}" Margin="8,0,0,0" Padding="0"
+                                 BorderThickness="0" Background="Transparent" FontSize="12.5"
+                                 ui:Placeholder.Text="Search task..."
+                                 Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged, Delay=140}"/>
+                        <Button Grid.Column="2" Style="{StaticResource IconButton}" Width="16" Height="16"
+                                Command="{Binding ClearSearchCommand}" ToolTip="Clear"
+                                Visibility="{Binding SearchQuery, Converter={StaticResource Vis}}">
+                            <ui:Icon Data="{StaticResource IconClose}" Size="10" StrokeThickness="2.4"
+                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <Border Width="1" Background="{DynamicResource BorderSoftBrush}" Margin="0,2,12,2"/>
+                    <Button Style="{StaticResource FilterPillButton}" Content="All Tasks"
+                            Command="{Binding SetStatusTabCommand}" CommandParameter="All Tasks"
+                            Tag="{Binding StatusTab, Converter={StaticResource EqOnOff}, ConverterParameter=All Tasks}"/>
+                    <Button Style="{StaticResource FilterPillButton}" Content="To do"
+                            Command="{Binding SetStatusTabCommand}" CommandParameter="To do"
+                            Tag="{Binding StatusTab, Converter={StaticResource EqOnOff}, ConverterParameter=To do}"/>
+                    <Button Style="{StaticResource FilterPillButton}" Content="Doing"
+                            Command="{Binding SetStatusTabCommand}" CommandParameter="Doing"
+                            Tag="{Binding StatusTab, Converter={StaticResource EqOnOff}, ConverterParameter=Doing}"/>
+                    <Button Style="{StaticResource FilterPillButton}" Content="Done"
+                            Command="{Binding SetStatusTabCommand}" CommandParameter="Done"
+                            Tag="{Binding StatusTab, Converter={StaticResource EqOnOff}, ConverterParameter=Done}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <!-- Undo -->
+                    <Button Style="{StaticResource GhostButton}" Margin="0,0,8,0" Padding="10,8"
+                            ToolTip="{Binding Main.UndoLabel}" IsEnabled="{Binding Main.CanUndo}"
+                            Command="{Binding Main.UndoCommand}">
+                        <ui:Icon Data="{StaticResource IconUndo}" Size="14" StrokeThickness="1.9"
+                                 Stroke="{DynamicResource TextMutedBrush}"/>
+                    </Button>
+
+                    <!-- Sort -->
+                    <Grid>
+                        <Button Style="{StaticResource GhostButton}" Command="{Binding ToggleSortMenuCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Icon Data="{StaticResource IconSort}" Size="13"
+                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding SortLabel}" Margin="6,0,6,0" VerticalAlignment="Center"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <ui:Icon Data="{StaticResource IconCaretDown}" Size="11" StrokeThickness="2.2"
+                                         Stroke="{DynamicResource TextFaintBrush}"/>
+                            </StackPanel>
+                        </Button>
+                        <Popup IsOpen="{Binding IsSortOpen, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
+                               Placement="Bottom" HorizontalOffset="-40" VerticalOffset="4" PopupAnimation="None">
+                            <ContentControl Style="{StaticResource Popover}" Width="212" Padding="5" Margin="10">
+                                <StackPanel>
+                                    <ItemsControl ItemsSource="{Binding SortOptions}"
+                                                  ItemTemplate="{StaticResource SortOptionRow}"/>
+                                    <TextBlock Text="Picking one puts every list back on it."
+                                               FontSize="10.5" Margin="9,2,9,4" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFaintBrush}"
+                                               Visibility="{Binding IsCustomSort, Converter={StaticResource Vis}}"/>
+                                    <Border Height="1" Margin="4,5" Background="{DynamicResource DividerSoftBrush}"/>
+                                    <!-- Only while the board or a list is sorted some other way than the default -->
+                                    <Button Style="{StaticResource MenuRowButton}" Command="{Binding ResetSortCommand}"
+                                            ToolTip="The board and every list go back to Manual"
+                                            Visibility="{Binding IsSortChanged, Converter={StaticResource Vis}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:Icon Data="{StaticResource IconClose}" Size="12" StrokeThickness="2.2"
+                                                     Stroke="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="Reset sorting" Margin="8,0,0,0" FontSize="12"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource MenuRowButton}" Command="{Binding ClearManualOrderCommand}"
+                                            ToolTip="Cards you dragged stop holding their place and sort by date, then priority">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:Icon Data="{StaticResource IconUndo}" Size="12" StrokeThickness="1.9"
+                                                     Stroke="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="Clear manual order" Margin="8,0,0,0" FontSize="12"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </ContentControl>
+                        </Popup>
+                    </Grid>
+
+                    <!-- Filter -->
+                    <Grid Margin="8,0,0,0">
+                        <Button Style="{StaticResource GhostButton}" Command="{Binding ToggleFilterMenuCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Icon Data="{StaticResource IconFilter}" Size="13"
+                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Text="Filter" Margin="6,0,6,0" VerticalAlignment="Center" FontSize="12"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Border MinWidth="16" Height="16" CornerRadius="4" Padding="4,0"
+                                        Background="{DynamicResource AccentSoftAltBrush}" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding FilterCount}" FontSize="10" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource AccentDarkBrush}"/>
+                                </Border>
+                                <!-- Only while filters are on: a quiet × that resets them without opening the menu -->
+                                <Button Style="{StaticResource IconButton}" Width="16" Height="16" Margin="4,0,-4,0"
+                                        VerticalAlignment="Center" ToolTip="Reset filters"
+                                        Command="{Binding ClearFiltersCommand}"
+                                        Visibility="{Binding FilterCount, Converter={StaticResource Vis}}">
+                                    <ui:Icon Data="{StaticResource IconClose}" Size="8" StrokeThickness="2.6"
+                                             Stroke="{DynamicResource TextFaintBrush}"/>
+                                </Button>
+                            </StackPanel>
+                        </Button>
+                        <Popup IsOpen="{Binding IsFilterOpen, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
+                               Placement="Bottom" HorizontalOffset="-110" VerticalOffset="4" PopupAnimation="None">
+                            <ContentControl Style="{StaticResource Popover}" Width="216" Padding="12,10" Margin="10">
+                                <StackPanel>
+                                    <ScrollViewer MaxHeight="330">
+                                        <ItemsControl ItemsSource="{Binding FilterGroups}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Margin="0,0,0,10">
+                                                        <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="Bold"
+                                                                   Foreground="{DynamicResource TextGhostBrush}"/>
+                                                        <ItemsControl ItemsSource="{Binding Options}" Margin="0,6,0,0">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <CheckBox Style="{StaticResource SmallTickBox}"
+                                                                              Content="{Binding Label}"
+                                                                              IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                    <Border BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,1,0,0" Padding="0,9,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Style="{StaticResource GhostButton}" Content="Reset"
+                                                    FontSize="11" Padding="7" Margin="0,0,4,0" ToolTip="Untick every filter"
+                                                    Command="{Binding ClearFiltersCommand}"/>
+                                            <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="Apply"
+                                                    FontSize="11" Padding="7" Margin="4,0,0,0"
+                                                    Command="{Binding CloseMenusCommand}"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </ContentControl>
+                        </Popup>
+                    </Grid>
+
+                    <!-- Group by parent: a view setting, shared by every board -->
+                    <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0"
+                            ToolTip="Show subtasks under their parent task"
+                            Tag="{Binding Main.GroupByParent, Converter={StaticResource BoolOnOff}}"
+                            Command="{Binding Main.ToggleGroupByParentCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconSubtasks}" Size="13" StrokeThickness="1.9"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <TextBlock Text="Group by parent" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Export what the board shows -->
+                    <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" ToolTip="Export the lists on screen to Markdown"
+                            Command="{Binding ExportBoardCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconExport}" Size="13"
+                                     Stroke="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="Export" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                       FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ Kanban ═══ -->
+        <!-- Islands: each list a card on the muted canvas. Flat: the lists run edge to
+             edge, divided by borders, every other one on the muted colour. The right
+             margin of -1 puts the last list's border just past the page's edge. -->
+        <ItemsControl Grid.Row="2" ItemsSource="{Binding Columns}" AlternationCount="2"
+                      Padding="{ui:ByLayout Islands='20,18,20,24', Flat=0}"
+                      Margin="{ui:ByLayout Islands=0, Flat='0,0,-1,0'}"
+                      Visibility="{Binding IsKanban, Converter={StaticResource Vis}}">
+            <ItemsControl.Style>
+                <Style TargetType="ItemsControl">
+                    <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ItemsControl.Style>
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Rows="1"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemContainerStyle>
+                <Style TargetType="ContentPresenter">
+                    <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource Vis}}"/>
+                </Style>
+            </ItemsControl.ItemContainerStyle>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="{ui:ByLayout Islands='7,0', Flat=0}" CornerRadius="{ui:ByLayout Islands=12, Flat=0}"
+                            BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,1,0'}" ClipToBounds="True">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource BorderSoftBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                    </DataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True"/>
+                                            <Condition Binding="{Binding (ItemsControl.AlternationIndex),
+                                                                 RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="1"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                                    </MultiDataTrigger>
+                                    <DataTrigger Binding="{Binding IsDropTarget}" Value="True">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                                        <Setter Property="Background" Value="{DynamicResource InlineAddBgBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <DockPanel>
+                            <!-- Column header; a right-click on it, or on bare column below the cards, opens the list's menu.
+                                 In Flat it is a strip on the list's own tint. -->
+                            <Border DockPanel.Dock="Top" BorderThickness="0,0,0,1"
+                                    ContextMenuOpening="Column_ContextMenuOpening">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+                                        <Setter Property="Padding" Value="14,12,10,12"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                                                <Setter Property="Background" Value="{Binding Tint}"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                                <Setter Property="Padding" Value="16,0,10,0"/>
+                                                <Setter Property="MinHeight" Value="46"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="16" Height="16" CornerRadius="99">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{Binding DotHalo}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Ellipse Width="7" Height="7" Fill="{Binding Dot}"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" Margin="8,0,0,0" FontSize="13"
+                                               FontWeight="Bold" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding CountLabel}" Margin="8,0,0,0" FontSize="11"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"
+                                               Visibility="{ui:ByLayout Islands=Visible, Flat=Collapsed}"/>
+                                    <Border Grid.Column="2" Style="{StaticResource CountPill}" Margin="8,0,0,0" HorizontalAlignment="Left"
+                                            Visibility="{ui:ByLayout Islands=Collapsed, Flat=Visible}">
+                                        <TextBlock Text="{Binding Count}" FontSize="11" FontWeight="Bold" Foreground="{Binding Ink}"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                        <ContentControl Template="{StaticResource ListTools}" Tag="Kanban"/>
+                                        <Button Style="{StaticResource IconButton}" ToolTip="Add a task here"
+                                                Command="{Binding Board.StartInlineAddCommand}"
+                                                CommandParameter="{Binding}">
+                                            <ui:Icon Data="{StaticResource IconPlus}" Size="15" StrokeThickness="2"
+                                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <ContentControl DockPanel.Dock="Top" Template="{StaticResource ListSearch}"
+                                            Padding="10,8" BorderThickness="0,0,0,1"
+                                            Background="{DynamicResource SurfaceSubtleBrush}"/>
+
+                            <!-- Inline add -->
+                            <Border DockPanel.Dock="Top" Padding="14,12" Background="{DynamicResource InlineAddBgBrush}"
+                                    BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1"
+                                    Visibility="{Binding IsAdding, Converter={StaticResource Vis}}">
+                                <StackPanel>
+                                    <!-- Opens with the caret in the name; Enter adds the task, Esc closes the card -->
+                                    <TextBox Style="{StaticResource SmallInputBox}" FontSize="13" FontWeight="SemiBold"
+                                             BorderBrush="{DynamicResource AccentBorderBrush}" Padding="9,7"
+                                             ui:Placeholder.Text="Task name"
+                                             IsVisibleChanged="InlineTitle_IsVisibleChanged"
+                                             Text="{Binding InlineTitle, UpdateSourceTrigger=PropertyChanged}">
+                                        <TextBox.InputBindings>
+                                            <KeyBinding Key="Return" Command="{Binding Board.SaveInlineAddCommand}" CommandParameter="{Binding}"/>
+                                            <KeyBinding Key="Escape" Command="{Binding Board.CancelInlineAddCommand}" CommandParameter="{Binding}"/>
+                                        </TextBox.InputBindings>
+                                    </TextBox>
+                                    <!-- Grows with what is typed up to about six lines, then scrolls; Shift+Enter starts a new line -->
+                                    <TextBox Style="{StaticResource SmallInputBox}" FontSize="11.5" Margin="0,6,0,0" Padding="9,6"
+                                             ui:Placeholder.Text="Short description"
+                                             TextWrapping="Wrap" AcceptsReturn="True" MaxHeight="110"
+                                             VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top"
+                                             Text="{Binding InlineDescription, UpdateSourceTrigger=PropertyChanged}">
+                                        <TextBox.InputBindings>
+                                            <KeyBinding Key="Return" Command="{Binding Board.SaveInlineAddCommand}" CommandParameter="{Binding}"/>
+                                            <KeyBinding Key="Escape" Command="{Binding Board.CancelInlineAddCommand}" CommandParameter="{Binding}"/>
+                                        </TextBox.InputBindings>
+                                    </TextBox>
+                                    <ItemsControl ItemsSource="{Binding Board.AscendingPriorities}" Margin="0,9,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource ChoiceChipButton}" Margin="0,0,6,6"
+                                                        FontSize="10.5" Padding="8,3" ToolTip="Priority"
+                                                        Command="{Binding DataContext.PickInlinePriorityCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Button.Tag>
+                                                        <MultiBinding Converter="{StaticResource MultiEqOnOff}">
+                                                            <Binding/>
+                                                            <Binding Path="DataContext.InlinePriority"
+                                                                     RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                        </MultiBinding>
+                                                    </Button.Tag>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <ui:PriorityGlyph Priority="{Binding}" VerticalAlignment="Center"
+                                                                          Fill="{Binding Converter={StaticResource PriorityFg}}"
+                                                                          Ghost="{DynamicResource PriorityGhostBrush}"/>
+                                                        <TextBlock Text="{Binding}" Margin="5,0,0,0" FontSize="10.5"
+                                                                   FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding InlineLabels}" Margin="0,3,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource ChoiceChipButton}" Margin="0,0,6,6"
+                                                        FontSize="10.5" Padding="8,3" Click="InlineLabel_Click"
+                                                        Tag="{Binding IsChecked, Converter={StaticResource BoolOnOff}}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Ellipse Width="5" Height="5" VerticalAlignment="Center"
+                                                                 Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                        <TextBlock Text="{Binding Label}" Margin="5,0,0,0" FontSize="10.5" FontWeight="SemiBold"
+                                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Button Style="{StaticResource PrimaryButton}" Content="Add task" FontSize="11.5" Padding="12,7"
+                                                Command="{Binding Board.SaveInlineAddCommand}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Style="{StaticResource GhostButton}" Content="Cancel" FontSize="11.5" Padding="11,7" Margin="8,0,0,0"
+                                                Command="{Binding Board.CancelInlineAddCommand}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Cards -->
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Background="Transparent" AllowDrop="True"
+                                          ContextMenuOpening="Column_ContextMenuOpening"
+                                          DragOver="Column_DragOver" DragLeave="Column_DragLeave" Drop="Column_Drop"
+                                          Tag="{Binding}">
+                                <StackPanel>
+                                    <TextBlock Text="Nothing here yet" FontSize="11.5" Margin="14,16"
+                                               IsHitTestVisible="False"
+                                               Foreground="{DynamicResource TextGhostSoftBrush}"
+                                               Visibility="{Binding Count, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                                    <ItemsControl ItemsSource="{Binding Cards}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Background="Transparent" AllowDrop="True" DragOver="Card_DragOver">
+                                                    <Border BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1"
+                                                            Padding="3,12,14,12"
+                                                            MouseLeftButtonUp="Card_Click"
+                                                            ContextMenuOpening="Card_ContextMenuOpening">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Opacity" Value="1"/>
+                                                                <Setter Property="Background" Value="Transparent"/>
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                                                    </Trigger>
+                                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                        <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding IsDragging}" Value="True">
+                                                                        <Setter Property="Opacity" Value="0.55"/>
+                                                                        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                                        <Setter Property="Effect">
+                                                                            <Setter.Value>
+                                                                                <DropShadowEffect BlurRadius="20" ShadowDepth="7" Direction="270"
+                                                                                                  Opacity="0.24" Color="{DynamicResource ShadowColor}"/>
+                                                                            </Setter.Value>
+                                                                        </Setter>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+
+                                                            <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Width="14"
+                                                                    Background="Transparent" Cursor="SizeAll" Tag="grip" ToolTip="Drag to move"
+                                                                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                                    PreviewMouseLeftButtonDown="Grip_MouseDown">
+                                                                <ui:Icon Data="{StaticResource IconGrip}" Size="14" StrokeThickness="0"
+                                                                         Fill="{DynamicResource GripBrush}"/>
+                                                            </Border>
+                                                            <Border Grid.Row="0" Grid.RowSpan="4" Grid.Column="0" Style="{StaticResource LinkZoneSpace}"/>
+
+                                                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,0,0">
+                                                                <Grid>
+                                                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                                                               TextTrimming="CharacterEllipsis" Style="{StaticResource HideWhileRenaming}"
+                                                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                                    <ContentControl Style="{StaticResource TitleEditorHost}" FontSize="13"/>
+                                                                </Grid>
+                                                                <TextBlock Text="{Binding Description}" FontSize="11.5" Margin="0,3,0,0"
+                                                                           TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis"
+                                                                           Foreground="{DynamicResource TextSubtleBrush}"
+                                                                           Visibility="{Binding Description, Converter={StaticResource Vis}}"/>
+                                                            </StackPanel>
+
+                                                            <ContentControl Grid.Row="0" Grid.Column="2" Style="{StaticResource CardActions}"/>
+
+                                                            <ItemsControl Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="10,9,0,0"
+                                                                          ItemsSource="{Binding Tags}" ItemTemplate="{StaticResource TagChipTemplate}">
+                                                                <ItemsControl.ItemsPanel>
+                                                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                                </ItemsControl.ItemsPanel>
+                                                            </ItemsControl>
+
+                                                            <!-- The priority on the left; the counts keep to the bottom-right corner,
+                                                                 so setting or clearing the priority never moves them -->
+                                                            <Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="10,7,0,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <!-- The chip's padding is pulled back out so its bars line up with the title -->
+                                                                <ContentControl Grid.Column="0" Template="{StaticResource PriorityChip}"
+                                                                                Margin="-5,-2,8,-2"/>
+                                                                <ui:CommentCount Grid.Column="2" Count="{Binding CommentCount}" Words="True" Margin="0,0,12,0"
+                                                                                 VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"
+                                                                                 IconBrush="{DynamicResource TextFaintBrush}"/>
+                                                                <ui:Icon Grid.Column="3" Style="{StaticResource CardSubtitleIcon}"/>
+                                                                <TextBlock Grid.Column="4" Text="{Binding SubtitleLabel}" Margin="8,0,0,0"
+                                                                           FontSize="11.5" VerticalAlignment="Center"
+                                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                            </Grid>
+
+                                                            <ContentControl Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="10,8,0,0"
+                                                                            Style="{StaticResource SubtaskTreeHost}"/>
+                                                        </Grid>
+                                                    </Border>
+                                                    <!-- Picked out for a bulk action -->
+                                                    <Border Width="3" HorizontalAlignment="Left" CornerRadius="0,2,2,0"
+                                                            IsHitTestVisible="False" Background="{DynamicResource AccentBrush}"
+                                                            Visibility="{Binding IsSelected, Converter={StaticResource Vis}}"/>
+
+                                                    <!-- Dropped on the strip beside the grip, the dragged card becomes this one's subtask -->
+                                                    <ContentControl Style="{StaticResource LinkTargetHost}" Margin="2,1" Padding="17,3,0,3"/>
+
+                                                    <!-- Where the dragged card would land -->
+                                                    <Border Height="2" VerticalAlignment="Top" CornerRadius="1" IsHitTestVisible="False"
+                                                            Opacity="0" RenderTransformOrigin="0.5,0.5"
+                                                            Background="{DynamicResource AccentBrush}">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleX="0.3"/>
+                                                        </Border.RenderTransform>
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding DropBefore}" Value="True">
+                                                                        <DataTrigger.EnterActions>
+                                                                            <BeginStoryboard Storyboard="{StaticResource DropLineIn}"/>
+                                                                        </DataTrigger.EnterActions>
+                                                                        <DataTrigger.ExitActions>
+                                                                            <BeginStoryboard Storyboard="{StaticResource DropLineOut}"/>
+                                                                        </DataTrigger.ExitActions>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                    </Border>
+                                                    <Border Height="2" VerticalAlignment="Bottom" CornerRadius="1" IsHitTestVisible="False"
+                                                            Opacity="0" RenderTransformOrigin="0.5,0.5"
+                                                            Background="{DynamicResource AccentBrush}">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleX="0.3"/>
+                                                        </Border.RenderTransform>
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding DropAfter}" Value="True">
+                                                                        <DataTrigger.EnterActions>
+                                                                            <BeginStoryboard Storyboard="{StaticResource DropLineIn}"/>
+                                                                        </DataTrigger.EnterActions>
+                                                                        <DataTrigger.ExitActions>
+                                                                            <BeginStoryboard Storyboard="{StaticResource DropLineOut}"/>
+                                                                        </DataTrigger.ExitActions>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                    </Border>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Button Style="{StaticResource ShowMoreButton}" Content="{Binding MoreLabel}" ui:LoadWhenSeen.IsEnabled="True"
+                                            Command="{Binding ShowMoreCommand}"
+                                            Visibility="{Binding HasMore, Converter={StaticResource Vis}}"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- ═══ List ═══ -->
+        <!-- Islands: each list a heading above its own card. Flat: each list a section
+             under a strip on its tint, edge to edge, every other row on a faint stripe. -->
+        <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroller}"
+                      VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding IsList, Converter={StaticResource Vis}}">
+            <ItemsControl ItemsSource="{Binding Columns}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="{ui:ByLayout Islands='0,0,0,16', Flat=0}" Visibility="{Binding IsVisible, Converter={StaticResource Vis}}">
+                            <Border ContextMenuOpening="Column_ContextMenuOpening">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                                                <Setter Property="Background" Value="{Binding Tint}"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                <Setter Property="Padding" Value="12,0,16,0"/>
+                                                <Setter Property="MinHeight" Value="42"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Style="{StaticResource ListHeadingButton}"
+                                    Command="{Binding Board.ToggleColumnCommand}"
+                                    CommandParameter="{Binding}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:Icon Data="{StaticResource IconChevronRight}" Size="13" StrokeThickness="2.2"
+                                             Stroke="{DynamicResource TextFaintBrush}" RenderTransformOrigin="0.5,0.5">
+                                        <ui:Icon.RenderTransform>
+                                            <RotateTransform Angle="{Binding IsExpanded, Converter={StaticResource Chevron}}"/>
+                                        </ui:Icon.RenderTransform>
+                                    </ui:Icon>
+                                    <Ellipse Width="8" Height="8" Margin="8,0,0,0" VerticalAlignment="Center" Fill="{Binding Dot}"
+                                             Visibility="{ui:ByLayout Islands=Visible, Flat=Collapsed}"/>
+                                    <Border Width="16" Height="16" Margin="8,0,0,0" CornerRadius="99" VerticalAlignment="Center"
+                                            Background="{DynamicResource SurfaceBrush}"
+                                            Visibility="{ui:ByLayout Islands=Collapsed, Flat=Visible}">
+                                        <Ellipse Width="7" Height="7" Fill="{Binding Dot}"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding Name}" Margin="8,0,0,0" FontSize="{ui:ByLayout Islands=12.5, Flat=13}" FontWeight="Bold"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding CountLabel}" Margin="8,0,0,0" FontSize="11" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFaintBrush}"
+                                               Visibility="{ui:ByLayout Islands=Visible, Flat=Collapsed}"/>
+                                    <Border Style="{StaticResource CountPill}" Margin="8,0,0,0"
+                                            Visibility="{ui:ByLayout Islands=Collapsed, Flat=Visible}">
+                                        <TextBlock Text="{Binding Count}" FontSize="11" FontWeight="Bold" Foreground="{Binding Ink}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+                                <ContentControl Grid.Column="1" Template="{StaticResource ListTools}" Tag="List"
+                                                VerticalAlignment="{ui:ByLayout Islands=Top, Flat=Center}" Margin="0,0,4,0"/>
+                            </Grid>
+                            </Border>
+
+                            <ContentControl Template="{StaticResource ListSearch}" Padding="{ui:ByLayout Islands='0,0,0,8', Flat='16,8'}"
+                                            BorderThickness="{ui:ByLayout Islands=0, Flat='0,0,0,1'}" Background="Transparent"/>
+
+                            <Border CornerRadius="{ui:ByLayout Islands=12, Flat=0}" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}"
+                                    ClipToBounds="True" AllowDrop="True" Tag="{Binding}"
+                                    DragOver="Column_DragOver" DragLeave="Column_DragLeave" Drop="Column_Drop"
+                                    Visibility="{Binding IsExpanded, Converter={StaticResource Vis}}">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoftBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsDropTarget}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel>
+                                    <TextBlock Text="Nothing here yet" FontSize="11.5" Margin="16,14"
+                                               Foreground="{DynamicResource TextGhostSoftBrush}"
+                                               Visibility="{Binding Count, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                                    <!-- The rows' fields named once, over them and lined up with them. The
+                                         grip, tick box and buttons have no title: a hidden tick box and spacers keep their room. -->
+                                    <Border BorderThickness="0,0,0,1" Padding="{ui:ByLayout Islands='16,8', Flat='20,8'}"
+                                            Visibility="{Binding Count, Converter={StaticResource Vis}}">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource BorderSoftBrush}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="1.5*" MinWidth="150"/>
+                                                <ColumnDefinition Width="96"/>
+                                                <ColumnDefinition Width="*" MinWidth="80"/>
+                                                <ColumnDefinition Width="112"/>
+                                                <ColumnDefinition Width="64"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="14"/>
+                                            <CheckBox Grid.Column="1" Style="{StaticResource TickBox}" Margin="12,0,0,0"
+                                                      Visibility="Hidden" Focusable="False" IsHitTestVisible="False"/>
+                                            <TextBlock Grid.Column="2" Text="TASK NAME" Margin="12,0,10,0" Style="{StaticResource SectionLabel}"
+                                                       FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                            <TextBlock Grid.Column="3" Text="PRIORITY" Margin="5,0,0,0" Style="{StaticResource SectionLabel}"
+                                                       FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                            <TextBlock Grid.Column="4" Text="LABELS" Style="{StaticResource SectionLabel}"
+                                                       FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                            <TextBlock Grid.Column="5" Text="CHECKLIST" Style="{StaticResource SectionLabel}"
+                                                       FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                            <TextBlock Grid.Column="6" Text="PROGRESS" HorizontalAlignment="Right" Style="{StaticResource SectionLabel}"
+                                                       FontWeight="Bold" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                            <!-- The room the rows' buttons take: their actions (102) and the open chevron (6 + 24) -->
+                                            <Border Grid.Column="7" Width="132"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <ItemsControl ItemsSource="{Binding ListCards}" AlternationCount="2">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Background="Transparent" AllowDrop="True" DragOver="Card_DragOver">
+                                                    <Border BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1"
+                                                            Padding="{ui:ByLayout Islands='16,12', Flat='20,11'}"
+                                                            MouseLeftButtonDown="Card_MouseDown"
+                                                            ContextMenuOpening="Card_ContextMenuOpening">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Opacity" Value="1"/>
+                                                                <Setter Property="Background" Value="Transparent"/>
+                                                                <Style.Triggers>
+                                                                    <MultiDataTrigger>
+                                                                        <MultiDataTrigger.Conditions>
+                                                                            <Condition Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True"/>
+                                                                            <Condition Binding="{Binding (ItemsControl.AlternationIndex),
+                                         RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="1"/>
+                                                                        </MultiDataTrigger.Conditions>
+                                                                        <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                                                                    </MultiDataTrigger>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                                                    </Trigger>
+                                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                        <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding IsDragging}" Value="True">
+                                                                        <Setter Property="Opacity" Value="0.55"/>
+                                                                        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                                        <Setter Property="Effect">
+                                                                            <Setter.Value>
+                                                                                <DropShadowEffect BlurRadius="20" ShadowDepth="7" Direction="270"
+                                                                                                  Opacity="0.24" Color="{DynamicResource ShadowColor}"/>
+                                                                            </Setter.Value>
+                                                                        </Setter>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <StackPanel>
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="1.5*" MinWidth="150"/>
+                                                                    <ColumnDefinition Width="96"/>
+                                                                    <ColumnDefinition Width="*" MinWidth="80"/>
+                                                                    <ColumnDefinition Width="112"/>
+                                                                    <ColumnDefinition Width="64"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <Border Grid.Column="0" Width="14" Background="Transparent" Cursor="SizeAll" Tag="grip"
+                                                                        ToolTip="Drag to move" HorizontalAlignment="Left"
+                                                                        PreviewMouseLeftButtonDown="Grip_MouseDown">
+                                                                    <ui:Icon Data="{StaticResource IconGrip}" Size="14" StrokeThickness="0"
+                                                                             Fill="{DynamicResource GripBrush}"/>
+                                                                </Border>
+                                                                <Border Grid.Column="0" Style="{StaticResource LinkZoneSpace}"/>
+
+                                                                <CheckBox Grid.Column="1" Style="{StaticResource TickBox}" Margin="12,0,0,0"
+                                                                          VerticalAlignment="Center" IsChecked="{Binding IsDone, Mode=OneWay}"
+                                                                          Click="ListDone_Click" ToolTip="Mark done"/>
+
+                                                                <StackPanel Grid.Column="2" Margin="12,0,10,0" VerticalAlignment="Center">
+                                                                    <DockPanel>
+                                                                        <ui:CommentCount DockPanel.Dock="Right" Count="{Binding CommentCount}" LeadingGap="8"
+                                                                                         VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                                        <Grid>
+                                                                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                                                                       TextTrimming="CharacterEllipsis" Style="{StaticResource HideWhileRenaming}"
+                                                                                       Foreground="{Binding IsDone, Converter={StaticResource DoneFg}}"
+                                                                                       TextDecorations="{Binding IsDone, Converter={StaticResource Strike}}"/>
+                                                                            <ContentControl Style="{StaticResource TitleEditorHost}" FontSize="13"/>
+                                                                        </Grid>
+                                                                    </DockPanel>
+                                                                    <TextBlock Text="{Binding Description}" FontSize="11.5" Margin="0,2,0,0"
+                                                                               TextTrimming="CharacterEllipsis"
+                                                                               Foreground="{DynamicResource TextSubtleBrush}"
+                                                                               Visibility="{Binding Description, Converter={StaticResource Vis}}"/>
+                                                                </StackPanel>
+
+                                                                <ContentControl Grid.Column="3" Template="{StaticResource PriorityChip}"/>
+
+                                                                <ItemsControl Grid.Column="4" ItemsSource="{Binding Tags}" VerticalAlignment="Center"
+                                                                              ItemTemplate="{StaticResource TagChipTemplate}">
+                                                                    <ItemsControl.ItemsPanel>
+                                                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                                    </ItemsControl.ItemsPanel>
+                                                                </ItemsControl>
+
+                                                                <TextBlock Grid.Column="5" Text="{Binding SubtitleLabel}" FontSize="11.5"
+                                                                           VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                                <TextBlock Grid.Column="6" Text="{Binding SubtaskFraction}" FontSize="11" FontWeight="SemiBold"
+                                                                           HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                           Foreground="{DynamicResource TextSubtleBrush}"/>
+
+                                                                <StackPanel Grid.Column="7" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <ContentControl Style="{StaticResource CardActions}"/>
+                                                                    <Button Style="{StaticResource OutlinedIconButton}" Margin="6,0,0,0" ToolTip="Open task"
+                                                                            Command="{Binding Board.OpenTaskCommand}"
+                                                                            CommandParameter="{Binding}">
+                                                                        <ui:Icon Data="{StaticResource IconChevronRight}" Size="12" StrokeThickness="2.2"
+                                                                                 Stroke="{DynamicResource TextFaintBrush}"/>
+                                                                    </Button>
+                                                                </StackPanel>
+                                                            </Grid>
+                                                            <DockPanel>
+                                                                <Border DockPanel.Dock="Left" Style="{StaticResource LinkZoneSpace}"/>
+                                                                <ContentControl Margin="42,8,0,0" MaxWidth="560" HorizontalAlignment="Left"
+                                                                                Style="{StaticResource SubtaskTreeHost}"/>
+                                                            </DockPanel>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <!-- Picked out for a bulk action -->
+                                                    <Border Width="3" HorizontalAlignment="Left" CornerRadius="0,2,2,0"
+                                                            IsHitTestVisible="False" Background="{DynamicResource AccentBrush}"
+                                                            Visibility="{Binding IsSelected, Converter={StaticResource Vis}}"/>
+
+                                                    <!-- Dropped on the strip beside the grip, the dragged card becomes this one's subtask -->
+                                                    <ContentControl Style="{StaticResource LinkTargetHost}" Margin="2,1" Padding="30,3,0,3"/>
+
+                                                    <!-- Where the dragged card would land -->
+                                                    <Border Height="2" VerticalAlignment="Top" CornerRadius="1" IsHitTestVisible="False"
+                                                            Opacity="0" RenderTransformOrigin="0.5,0.5"
+                                                            Background="{DynamicResource AccentBrush}">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleX="0.3"/>
+                                                        </Border.RenderTransform>
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding DropBefore}" Value="True">
+                                                                        <DataTrigger.EnterActions>
+                                                                            <BeginStoryboard Storyboard="{StaticResource DropLineIn}"/>
+                                                                        </DataTrigger.EnterActions>
+                                                                        <DataTrigger.ExitActions>
+                                                                            <BeginStoryboard Storyboard="{StaticResource DropLineOut}"/>
+                                                                        </DataTrigger.ExitActions>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                    </Border>
+                                                    <Border Height="2" VerticalAlignment="Bottom" CornerRadius="1" IsHitTestVisible="False"
+                                                            Opacity="0" RenderTransformOrigin="0.5,0.5"
+                                                            Background="{DynamicResource AccentBrush}">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform ScaleX="0.3"/>
+                                                        </Border.RenderTransform>
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding DropAfter}" Value="True">
+                                                                        <DataTrigger.EnterActions>
+                                                                            <BeginStoryboard Storyboard="{StaticResource DropLineIn}"/>
+                                                                        </DataTrigger.EnterActions>
+                                                                        <DataTrigger.ExitActions>
+                                                                            <BeginStoryboard Storyboard="{StaticResource DropLineOut}"/>
+                                                                        </DataTrigger.ExitActions>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                    </Border>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Button Style="{StaticResource ShowMoreButton}" Content="{Binding MoreLabel}" ui:LoadWhenSeen.IsEnabled="True"
+                                            Command="{Binding ShowMoreCommand}"
+                                            Visibility="{Binding HasMore, Converter={StaticResource Vis}}"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- ═══ Table ═══ -->
+        <!-- Islands: the rows in a card. Flat: the table edge to edge, its cells divided
+             by lines, every other row on a faint stripe. -->
+        <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroller}"
+                      VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding IsTable, Converter={StaticResource Vis}}">
+            <Border Style="{StaticResource Card}" ClipToBounds="True"
+                    CornerRadius="{ui:ByLayout Islands=12, Flat=0}" BorderThickness="{ui:ByLayout Islands=1, Flat=0}">
+                <StackPanel>
+                    <Border Padding="{ui:ByLayout Islands='16,11', Flat='20,11'}" BorderThickness="0,0,0,1">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource BorderSoftBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="0.8*"/>
+                                <ColumnDefinition Width="1.2*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="0.7*"/>
+                            </Grid.ColumnDefinitions>
+                            <Rectangle Grid.Column="0" Style="{StaticResource TableHeadLine}"/>
+                            <Rectangle Grid.Column="1" Style="{StaticResource TableHeadLine}"/>
+                            <Rectangle Grid.Column="2" Style="{StaticResource TableHeadLine}"/>
+                            <Rectangle Grid.Column="3" Style="{StaticResource TableHeadLine}"/>
+                            <Rectangle Grid.Column="4" Style="{StaticResource TableHeadLine}"/>
+                            <TextBlock Grid.Column="0" Text="TASK NAME" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <TextBlock Grid.Column="1" Text="STATUS" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                       Margin="{ui:ByLayout Islands=0, Flat='16,0'}" Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <TextBlock Grid.Column="2" Text="PRIORITY" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                       Margin="{ui:ByLayout Islands=0, Flat='16,0'}" Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <TextBlock Grid.Column="3" Text="LABELS" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                       Margin="{ui:ByLayout Islands=0, Flat='16,0'}" Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <TextBlock Grid.Column="4" Text="CHECKLIST" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                       Margin="{ui:ByLayout Islands=0, Flat='16,0'}" Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <TextBlock Grid.Column="5" Text="PROGRESS" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                       Margin="{ui:ByLayout Islands=0, Flat='16,0,0,0'}"
+                                       TextAlignment="Right" Foreground="{DynamicResource TextSubtleBrush}"/>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="No tasks match the current filters" FontSize="12" Margin="{ui:ByLayout Islands='16,18', Flat='20,18'}"
+                               Foreground="{DynamicResource TextGhostSoftBrush}"
+                               Visibility="{Binding AllTasks.Count, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                    <ItemsControl ItemsSource="{Binding AllTasks}" AlternationCount="2" ItemTemplate="{StaticResource TableRow}"/>
+                    <Button Style="{StaticResource ShowMoreButton}" Content="{Binding TableMoreLabel}" ui:LoadWhenSeen.IsEnabled="True"
+                            Command="{Binding ShowMoreTableCommand}"
+                            Visibility="{Binding TableHasMore, Converter={StaticResource Vis}}"/>
+                </StackPanel>
+            </Border>
+        </ScrollViewer>
+
+        <!--
+            The priority and labels editor. One serves every card: it opens at
+            the pointer, so it sits by whichever chip or menu asked for it
+            without having to track which one that was.
+        -->
+        <Popup IsOpen="{Binding IsCardEditorOpen, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
+               Placement="MousePoint" HorizontalOffset="-14" VerticalOffset="12" PopupAnimation="None">
+            <ContentControl Style="{StaticResource Popover}" Width="268" Padding="12,11" Margin="10">
+                <StackPanel>
+                    <TextBlock Text="{Binding EditorHeading}" FontSize="12.5" FontWeight="Bold"
+                               TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Changes apply to every selected task." FontSize="11" Margin="0,2,0,0"
+                               Foreground="{DynamicResource TextFaintBrush}"
+                               Visibility="{Binding EditorAppliesToMany, Converter={StaticResource Vis}}"/>
+
+                    <TextBlock Text="PRIORITY" FontSize="10" FontWeight="Bold" Margin="0,12,0,7"
+                               Foreground="{DynamicResource TextGhostBrush}"/>
+                    <ItemsControl ItemsSource="{Binding PriorityChoices}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource ChoiceChipButton}" Margin="0,0,6,6" Padding="9,6"
+                                        HorizontalContentAlignment="Left"
+                                        Command="{Binding DataContext.SetEditorPriorityCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.Tag>
+                                        <MultiBinding Converter="{StaticResource MultiEqOnOff}">
+                                            <Binding/>
+                                            <Binding Path="DataContext.EditingCard.Priority"
+                                                     RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                        </MultiBinding>
+                                    </Button.Tag>
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:PriorityGlyph Priority="{Binding}" VerticalAlignment="Center"
+                                                          Fill="{Binding Converter={StaticResource PriorityFg}}"
+                                                          Ghost="{DynamicResource PriorityGhostBrush}"/>
+                                        <TextBlock Text="{Binding Converter={StaticResource PriorityName}}"
+                                                   Margin="7,0,0,0" FontSize="11.5" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="LABELS" FontSize="10" FontWeight="Bold" Margin="0,6,0,7"
+                               Foreground="{DynamicResource TextGhostBrush}"/>
+                    <ItemsControl ItemsSource="{Binding EditorLabels}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource ChoiceChipButton}" Margin="0,0,5,5" Padding="8,3"
+                                        FontSize="10.5" Tag="{Binding IsChecked, Converter={StaticResource BoolOnOff}}"
+                                        Command="{Binding DataContext.ToggleEditorLabelCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="5" Height="5" VerticalAlignment="Center" Fill="{Binding Foreground}"/>
+                                        <TextBlock Text="{Binding Label}" Margin="5,0,0,0" FontSize="10.5"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBox Style="{StaticResource SmallInputBox}" Margin="0,3,0,0"
+                             ui:Placeholder.Text="New label, then Enter"
+                             Text="{Binding EditorNewLabel, UpdateSourceTrigger=PropertyChanged}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding AddEditorLabelCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                </StackPanel>
+            </ContentControl>
+        </Popup>
+    </Grid>
+</UserControl>

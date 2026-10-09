@@ -1,0 +1,250 @@
+<UserControl x:Class="MikuDo.Views.VaultView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:MikuDo.Converters"
+             xmlns:ui="clr-namespace:MikuDo.Controls"
+             FontFamily="{StaticResource AppFont}">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="Vis"/>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource SurfaceBrush}"
+          TextElement.Foreground="{DynamicResource TextSecondaryBrush}">
+
+        <!-- ═══ Locked ═══ -->
+        <Grid Style="{StaticResource PageCanvas}"
+              Visibility="{Binding IsUnlocked, Converter={StaticResource Vis}, ConverterParameter=invert}">
+            <!-- Shadow drawn once beneath the card, so typing the password does not re-blur it -->
+            <Grid Width="340" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ui:SoftShadow CornerRadius="14" BlurRadius="28" ShadowDepth="8" ShadowOpacity="0.08"
+                               Visibility="{ui:ByLayout Islands=Visible, Flat=Collapsed}"
+                               Color="{DynamicResource ShadowColor}"/>
+                <Border CornerRadius="{ui:ByLayout Islands=14, Flat=0}" Padding="26" Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="{ui:ByLayout Islands=1, Flat=0}">
+                    <StackPanel>
+                        <Border Width="44" Height="44" CornerRadius="12" HorizontalAlignment="Left"
+                                Background="{DynamicResource AccentTintBrush}">
+                            <ui:Icon Data="{StaticResource IconLock}" Size="22" StrokeThickness="1.8"
+                                     Stroke="{DynamicResource AccentBrush}"/>
+                        </Border>
+
+                        <TextBlock Text="{Binding UnlockTitle}" Margin="0,16,0,0" FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{Binding UnlockBlurb}" Margin="0,6,0,0" FontSize="12" LineHeight="19"
+                                   TextWrapping="Wrap" Foreground="{DynamicResource TextSubtleBrush}"/>
+
+                        <TextBlock Text="Master password" Margin="0,18,0,6" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSubtleBrush}"/>
+                        <PasswordBox x:Name="PasswordBox" Style="{StaticResource PasswordInput}" KeyDown="Password_KeyDown"/>
+
+                        <StackPanel Visibility="{Binding NeedsConfirmField, Converter={StaticResource Vis}}">
+                            <TextBlock Text="Confirm password" Margin="0,12,0,6" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <PasswordBox x:Name="ConfirmBox" Style="{StaticResource PasswordInput}" KeyDown="Password_KeyDown"/>
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding ErrorMessage}" Margin="0,8,0,0" FontSize="11.5" FontWeight="SemiBold"
+                                   TextWrapping="Wrap" Foreground="{DynamicResource DangerAccentBrush}"
+                                   Visibility="{Binding ErrorMessage, Converter={StaticResource Vis}}"/>
+
+                        <Button Style="{StaticResource PrimaryButton}" Margin="0,16,0,0" Padding="11" FontSize="12.5"
+                                Content="{Binding UnlockButtonLabel}" Click="Unlock_Click"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <ui:Icon Data="{StaticResource IconShield}" Size="13"
+                                     Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                            <TextBlock Text="AES-256 encrypted · locks when you leave the page" Margin="7,0,0,0"
+                                       FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFaintBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ═══ Unlocked ═══ -->
+        <Grid Visibility="{Binding IsUnlocked, Converter={StaticResource Vis}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,18">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Vault" Style="{StaticResource PageTitle}"/>
+                        <TextBlock Text="{Binding Subtitle}" Style="{StaticResource PageSubtitle}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Style="{StaticResource GhostButton}" Command="{Binding LockCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Icon Data="{StaticResource IconLock}" Size="14"
+                                         Stroke="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Text="Lock vault" Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource PrimaryButton}" Margin="10,0,0,0" Command="{Binding NewItemCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Icon Data="{StaticResource IconPlus}" Size="13" Stroke="{DynamicResource ButtonPrimaryForegroundBrush}" StrokeThickness="2.2"/>
+                                <TextBlock Text="New item" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                           FontWeight="Bold" Foreground="{DynamicResource ButtonPrimaryForegroundBrush}"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" Style="{StaticResource PageScroller}"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel VerticalAlignment="Top">
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="{ui:ByLayout Islands=0, Flat='0,0,0,1'}"
+                            Margin="{ui:ByLayout Islands='0,0,0,14', Flat=0}">
+                    <ItemsControl ItemsSource="{Binding Groups}" AlternationCount="2" Margin="{ui:ByLayout Islands=0, Flat='0,0,-1,0'}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="{ui:ByLayout Islands='6,0', Flat=0}" Padding="{ui:ByLayout Islands='16,14', Flat='20,14'}"
+                                        BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,1,0'}"
+                                        ContextMenuOpening="Row_ContextMenuOpening">
+                                    <Border.Style>
+                                        <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                                            <Style.Triggers>
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding IsFlat, Source={x:Static ui:Layout.Current}}" Value="True"/>
+                                                        <Condition Binding="{Binding (ItemsControl.AlternationIndex),
+                                                                             RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="1"/>
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                                                </MultiDataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="34" Height="34" CornerRadius="9" Background="{Binding Background}">
+                                            <Rectangle Width="12" Height="12" RadiusX="4" RadiusY="4" Fill="{Binding Foreground}"/>
+                                        </Border>
+                                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="Bold"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{Binding CountLabel}" FontSize="11" Margin="0,2,0,0"
+                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                        <StackPanel>
+                            <Border Background="{DynamicResource SurfaceSubtleBrush}" Padding="{ui:ByLayout Islands='16,11', Flat='20,11'}"
+                                    BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="0,0,0,1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="2*"/>
+                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="0.8*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="NAME" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="TYPE" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                    <TextBlock Grid.Column="2" Text="MODIFIED" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                    <TextBlock Grid.Column="3" Text="ACCESS" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                                               TextAlignment="Right" Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </Grid>
+                            </Border>
+
+                            <TextBlock Text="The vault is empty. Use New item to add an encrypted task." FontSize="12"
+                                       Margin="16,18" Foreground="{DynamicResource TextGhostSoftBrush}"
+                                       Visibility="{Binding Items.Count, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+
+                            <ItemsControl ItemsSource="{Binding Items}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="{ui:ByLayout Islands='16,12', Flat='20,12'}" BorderBrush="{DynamicResource DividerSoftBrush}"
+                                                BorderThickness="0,0,0,1" Background="Transparent"
+                                                MouseLeftButtonUp="Row_Click"
+                                                ContextMenuOpening="Row_ContextMenuOpening">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="2*"/>
+                                                    <ColumnDefinition Width="1*"/>
+                                                    <ColumnDefinition Width="1*"/>
+                                                    <ColumnDefinition Width="0.8*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,10,0">
+                                                    <ui:Icon Data="{StaticResource IconFile}" Size="16"
+                                                             Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                                                    <TextBlock Text="{Binding Name}" Margin="10,0,0,0" FontSize="12.5"
+                                                               FontWeight="SemiBold" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Text="{Binding Type}" FontSize="11.5"
+                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Modified}" FontSize="11.5"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                                            VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                                                        <ui:PriorityGlyph VerticalAlignment="Center" Priority="{Binding Priority}"
+                                                                          Fill="{Binding PriorityForeground}" Ghost="{DynamicResource PriorityGhostBrush}"/>
+                                                        <TextBlock Text="{Binding PriorityName}" Margin="5,0,0,0" FontSize="10.5" FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center" Foreground="{Binding PriorityForeground}"
+                                                                   Visibility="{Binding HasPriority, Converter={StaticResource Vis}}"/>
+                                                        <ui:CommentCount Count="{Binding CommentCount}" LeadingGap="10" VerticalAlignment="Center"
+                                                                         Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    </StackPanel>
+                                                    <Border CornerRadius="6" Padding="8,3" Background="{Binding AccessBackground}">
+                                                        <TextBlock Text="{Binding Access}" FontSize="10.5" FontWeight="SemiBold"
+                                                                   Foreground="{Binding AccessForeground}"/>
+                                                    </Border>
+                                                    <Button Style="{StaticResource IconButton}" Width="20" Height="20" Margin="8,0,0,0"
+                                                            ToolTip="Delete permanently"
+                                                            Command="{Binding DataContext.DeleteItemCommand,
+                                                                      RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}">
+                                                        <ui:Icon Data="{StaticResource IconTrash}" Size="13"
+                                                                 Stroke="{DynamicResource TextFaintBrush}"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Style="{StaticResource ShowMoreButton}" Content="{Binding MoreLabel}" ui:LoadWhenSeen.IsEnabled="True"
+                                    Command="{Binding ShowMoreCommand}"
+                                    Visibility="{Binding HasMore, Converter={StaticResource Vis}}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>
