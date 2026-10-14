@@ -179,6 +179,9 @@ public partial class NoteRow : SidebarNoteRow
     /// <summary>The file is no longer where it was: moved, renamed or deleted.</summary>
     [ObservableProperty] private bool _isMissing;
 
+    /// <summary>The note is open in a reader window of its own.</summary>
+    [ObservableProperty] private bool _isInWindow;
+
     public string Path { get; init; } = string.Empty;
     public string Name => System.IO.Path.GetFileName(Path);
 
@@ -202,6 +205,7 @@ public partial class NoteRow : SidebarNoteRow
         IsActive = row.IsActive;
         IsDirty = row.IsDirty;
         IsMissing = row.IsMissing;
+        IsInWindow = row.IsInWindow;
     }
 }
 

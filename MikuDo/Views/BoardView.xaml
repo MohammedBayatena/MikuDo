@@ -8,6 +8,7 @@
 
     <UserControl.Resources>
         <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:ScaledOffsetConverter x:Key="ScaledOffset"/>
         <conv:BoolToOnOffConverter x:Key="BoolOnOff"/>
         <conv:EqualsToOnOffConverter x:Key="EqOnOff"/>
         <conv:ExpandedToAngleConverter x:Key="Chevron"/>
@@ -358,7 +359,8 @@
                         </Button>
                         <!-- Tag on the host names its view: "Kanban" or "List" -->
                         <Popup StaysOpen="False" AllowsTransparency="True"
-                               Placement="Bottom" HorizontalOffset="-160" VerticalOffset="4" PopupAnimation="None">
+                               Placement="Bottom" VerticalOffset="4" PopupAnimation="None"
+                               HorizontalOffset="{Binding AppScale, Source={x:Static ui:Display.Current}, Converter={StaticResource ScaledOffset}, ConverterParameter=-160}">
                             <Popup.IsOpen>
                                 <MultiBinding Converter="{StaticResource OpenInView}" Mode="TwoWay">
                                     <Binding Path="IsSortOpen"/>
@@ -463,7 +465,8 @@
                              Fill="{DynamicResource TextGhostSoftBrush}" StrokeThickness="0"/>
                 </Button>
                 <Popup IsOpen="{Binding IsMenuOpen, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
-                       Placement="Bottom" HorizontalOffset="-168" VerticalOffset="2" PopupAnimation="None">
+                       Placement="Bottom" VerticalOffset="2" PopupAnimation="None"
+                       HorizontalOffset="{Binding AppScale, Source={x:Static ui:Display.Current}, Converter={StaticResource ScaledOffset}, ConverterParameter=-168}">
                     <ContentControl Style="{StaticResource Popover}" Width="196" Padding="5" Margin="10">
                         <StackPanel>
                             <Button Style="{StaticResource MenuRowButton}" Content="Open task"
@@ -476,6 +479,10 @@
                                     Click="EditCard_Click"/>
                             <Button Style="{StaticResource MenuRowButton}" Content="Duplicate"
                                     Command="{Binding Board.DuplicateTaskCommand}"
+                                    CommandParameter="{Binding}"/>
+                            <Button Style="{StaticResource MenuRowButton}" Content="Move to top"
+                                    Visibility="{Binding IsAtTop, Converter={StaticResource Vis}, ConverterParameter=invert}"
+                                    Command="{Binding Board.MoveToTopCommand}"
                                     CommandParameter="{Binding}"/>
                             <Button Style="{StaticResource MenuRowButton}" Content="{Binding MoveToALabel}"
                                     Command="{Binding Board.MoveCardToStatusCommand}">
@@ -546,6 +553,13 @@
         <ControlTemplate x:Key="CardActionsTemplate" TargetType="ContentControl">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
                 <Button Style="{StaticResource IconButton}" Width="20" Height="20"
+                        ToolTip="Move to the top of the list"
+                        Visibility="{Binding IsAtTop, Converter={StaticResource Vis}, ConverterParameter=invert}"
+                        Command="{Binding Board.MoveToTopCommand}" CommandParameter="{Binding}">
+                    <ui:Icon Data="{StaticResource IconMoveTop}" Size="13" StrokeThickness="2"
+                             Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                </Button>
+                <Button Style="{StaticResource IconButton}" Width="20" Height="20"
                         ToolTip="Move to the previous column"
                         Visibility="{Binding CanRetreat, Converter={StaticResource Vis}}"
                         Command="{Binding Board.RetreatCardCommand}" CommandParameter="{Binding}">
@@ -573,13 +587,39 @@
             </StackPanel>
         </ControlTemplate>
 
+        <!-- When a card was made, and when its words were last edited if they were:
+             "(clock) 16 Mar  (pencil) Fri". Made and edited on the same day, the two
+             icons share the one date. The slot is the actions' width; a date format
+             too long for it is drawn smaller rather than cut. -->
+        <ControlTemplate x:Key="CardDatesTemplate" TargetType="ContentControl">
+            <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" Visibility="{Binding CreatedShort, Converter={StaticResource Vis}}">
+                        <ui:Icon Data="{StaticResource IconClock}" Size="10" StrokeThickness="2"
+                                 VerticalAlignment="Center" Stroke="{DynamicResource TextFaintBrush}"/>
+                        <TextBlock Text="{Binding CreatedShort}" Margin="2,0,0,0" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="7,0,0,0" Visibility="{Binding EditedShort, Converter={StaticResource Vis}}">
+                        <ui:Icon Data="{StaticResource IconClock}" Size="10" StrokeThickness="2" Margin="0,0,1,0"
+                                 VerticalAlignment="Center" Stroke="{DynamicResource TextFaintBrush}"
+                                 Visibility="{Binding CreatedShort, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                        <ui:Icon Data="{StaticResource IconPencil}" Size="10" StrokeThickness="2"
+                                 VerticalAlignment="Center" Stroke="{DynamicResource TextFaintBrush}"/>
+                        <TextBlock Text="{Binding EditedShort}" Margin="2,0,0,0" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFaintBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Viewbox>
+        </ControlTemplate>
+
         <!--
             The actions are built when the pointer reaches the row.
 
-            Five templated buttons and a popup are most of what a row costs to
+            Six templated buttons and a popup are most of what a row costs to
             build, and a board pays that for every row before any of them is
             pointed at. Applying the template from a trigger defers it to the
-            row actually being used. The width is held either way: four 20px
+            row actually being used. The width is held either way: five 20px
             buttons and the 22px menu, so nothing moves when they appear.
         -->
         <!-- A table row's way to add a label, at the end of its labels. Its slot is always
@@ -619,13 +659,19 @@
         </Style>
 
         <Style x:Key="CardActions" TargetType="ContentControl">
-            <Setter Property="Width" Value="102"/>
+            <Setter Property="Width" Value="122"/>
             <Style.Triggers>
                 <DataTrigger Value="True"
                              Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type Border}}}">
                     <Setter Property="Template" Value="{StaticResource CardActionsTemplate}"/>
                 </DataTrigger>
             </Style.Triggers>
+        </Style>
+
+        <!-- A kanban card's slot for its actions shows its dates until the pointer
+             reaches the card, so the dates take no room of their own -->
+        <Style x:Key="CardActionsOrDates" TargetType="ContentControl" BasedOn="{StaticResource CardActions}">
+            <Setter Property="Template" Value="{StaticResource CardDatesTemplate}"/>
         </Style>
 
         <!-- A list's heading in the List view, which opens and shuts the list. Pointed
@@ -1039,7 +1085,8 @@
                             </StackPanel>
                         </Button>
                         <Popup IsOpen="{Binding IsSortOpen, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
-                               Placement="Bottom" HorizontalOffset="-40" VerticalOffset="4" PopupAnimation="None">
+                               Placement="Bottom" VerticalOffset="4" PopupAnimation="None"
+                               HorizontalOffset="{Binding AppScale, Source={x:Static ui:Display.Current}, Converter={StaticResource ScaledOffset}, ConverterParameter=-40}">
                             <ContentControl Style="{StaticResource Popover}" Width="212" Padding="5" Margin="10">
                                 <StackPanel>
                                     <ItemsControl ItemsSource="{Binding SortOptions}"
@@ -1097,7 +1144,8 @@
                             </StackPanel>
                         </Button>
                         <Popup IsOpen="{Binding IsFilterOpen, Mode=TwoWay}" StaysOpen="False" AllowsTransparency="True"
-                               Placement="Bottom" HorizontalOffset="-110" VerticalOffset="4" PopupAnimation="None">
+                               Placement="Bottom" VerticalOffset="4" PopupAnimation="None"
+                               HorizontalOffset="{Binding AppScale, Source={x:Static ui:Display.Current}, Converter={StaticResource ScaledOffset}, ConverterParameter=-110}">
                             <ContentControl Style="{StaticResource Popover}" Width="216" Padding="12,10" Margin="10">
                                 <StackPanel>
                                     <ScrollViewer MaxHeight="330">
@@ -1450,7 +1498,7 @@
                                                                            Visibility="{Binding Description, Converter={StaticResource Vis}}"/>
                                                             </StackPanel>
 
-                                                            <ContentControl Grid.Row="0" Grid.Column="2" Style="{StaticResource CardActions}"/>
+                                                            <ContentControl Grid.Row="0" Grid.Column="2" Style="{StaticResource CardActionsOrDates}"/>
 
                                                             <ItemsControl Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="10,9,0,0"
                                                                           ItemsSource="{Binding Tags}" ItemTemplate="{StaticResource TagChipTemplate}">

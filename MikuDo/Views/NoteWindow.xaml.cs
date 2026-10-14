@@ -41,6 +41,7 @@ public partial class NoteWindow : Window
         InitializeComponent();
         MaximizeFix.Apply(this);
         RoundedWindow.Apply(this, CornerRadius);
+        Display.Scale(this, Edge, 44);
 
         _main = main;
         Note = note;
@@ -111,6 +112,7 @@ public partial class NoteWindow : Window
         var window = new NoteWindow(main, note);
         window.Place();
         Shown.Add(window);
+        OpenReaders.Current.Update();
         window.Show();
         window.BringForward();
         return window;
@@ -119,6 +121,15 @@ public partial class NoteWindow : Window
     /// <summary>The reader showing <paramref name="path"/>, if one is.</summary>
     public static NoteWindow? Find(string path)
         => Shown.FirstOrDefault(w => MainViewModel.SamePath(w.Note.Path, path));
+
+    /// <summary>
+    /// Closes every reader window, each asking first about its own unsaved
+    /// changes; one answered Cancel stays open.
+    /// </summary>
+    public static void CloseAll()
+    {
+        foreach (var window in Shown.ToList()) window.Close();
+    }
 
     /// <summary>
     /// Before the app closes: asks about each reader's unsaved changes, then
@@ -205,6 +216,7 @@ public partial class NoteWindow : Window
         Note = next;
         Attach(next);
         _main.RememberNotePath(next.Path);
+        OpenReaders.Current.Update();
     }
 
     // ── The reading bar ─────────────────────────────────────────
@@ -238,6 +250,10 @@ public partial class NoteWindow : Window
     private void OnTop_Click(object sender, RoutedEventArgs e)
         => App.Database.SaveSetting("ReaderOnTop", Topmost ? "True" : "False");
 
+    private void Windows_Click(object sender, RoutedEventArgs e) => WindowSwitcher.OpenMenu(WindowsButton);
+
+    private void ZoomChip_Click(object sender, RoutedEventArgs e) => Display.Current.SetNoteZoom(1);
+
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape && Note.ReaderDialog != null)
@@ -247,7 +263,10 @@ public partial class NoteWindow : Window
         }
     }
 
-    /// <summary>The reader's commands, on the keys the user set for them: Save, closing the window, and find.</summary>
+    /// <summary>
+    /// The reader's commands, on the keys the user set for them: Save, closing
+    /// the window, find, the note's text size, and the next MikuDo window.
+    /// </summary>
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Handled) return;
@@ -264,6 +283,8 @@ public partial class NoteWindow : Window
         else if (Services.Shortcuts.Is("find.open", e)) e.Handled = Page.OpenFind();
         else if (Services.Shortcuts.Is("find.next", e)) e.Handled = Page.FindStep(1);
         else if (Services.Shortcuts.Is("find.previous", e)) e.Handled = Page.FindStep(-1);
+        else if (Services.Shortcuts.Is("window.next", e)) e.Handled = WindowSwitcher.Next(this);
+        else if (NoteView.Zoom(e)) e.Handled = true;
     }
 
     // ── Window chrome ───────────────────────────────────────────
@@ -287,6 +308,7 @@ public partial class NoteWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         Shown.Remove(this);
+        OpenReaders.Current.Update();
         Detach(Note);
         // The page lets go of the note before its preview goes with the window.
         DataContext = null;

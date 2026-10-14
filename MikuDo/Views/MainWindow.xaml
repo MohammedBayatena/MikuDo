@@ -30,6 +30,7 @@
         <conv:NotConverter x:Key="Not"/>
         <conv:SidebarColumnConverter x:Key="SidebarColumn"/>
         <conv:ScaleConverter x:Key="Scale"/>
+        <conv:ProductConverter x:Key="Product"/>
 
         <!-- A sidebar section's heading. Clicking it folds the section; a chevron
              shows on hover, and stays while the section is folded. -->
@@ -312,7 +313,7 @@
                                     <Button x:Name="popout" DockPanel.Dock="Right" Style="{StaticResource IconButton}"
                                             Width="20" Height="20" Margin="4,-2,-4,-2" Visibility="Collapsed"
                                             ToolTip="Open in a new window" Click="NoteRowPopOut_Click">
-                                        <ui:Icon Data="{StaticResource IconPopOut}" Size="12" StrokeThickness="2.1"
+                                        <ui:Icon x:Name="popoutIcon" Data="{StaticResource IconPopOut}" Size="12" StrokeThickness="2.1"
                                                  Stroke="{DynamicResource TextFaintBrush}"/>
                                     </Button>
                                     <TextBlock x:Name="name" Text="{Binding Name}" Margin="7,0,0,0" VerticalAlignment="Center"
@@ -333,6 +334,12 @@
                                 <Setter TargetName="dot" Property="Visibility" Value="Collapsed"/>
                                 <Setter TargetName="popout" Property="Visibility" Value="Visible"/>
                             </Trigger>
+                            <!-- Open in a reader window: the window's mark stays, and brings that window forward -->
+                            <DataTrigger Binding="{Binding IsInWindow}" Value="True">
+                                <Setter TargetName="popout" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="popout" Property="ToolTip" Value="Open in a window: bring it forward"/>
+                                <Setter TargetName="popoutIcon" Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                            </DataTrigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
                             </Trigger>
@@ -523,6 +530,10 @@
         <!-- Window controls live in the canvas margin, outside the app card -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
                     Margin="0,9,12,0" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+            <!-- While notes are open in reader windows: how many, and a list to switch to one -->
+            <Button x:Name="WindowsButton" Style="{StaticResource WindowListButton}" Margin="0,0,8,0" Click="Windows_Click"
+                    Visibility="{Binding Any, Source={x:Static views:OpenReaders.Current}, Converter={StaticResource Vis}}"
+                    ToolTip="{Binding [window.next], Source={x:Static svc:ShortcutText.InParens}, StringFormat='Reader windows: switch to one{0}'}"/>
             <Button Style="{StaticResource WindowChromeButton}" Click="Minimize_Click" ToolTip="Minimise">
                 <ui:Icon Data="{StaticResource IconMinimize}" Size="14" StrokeThickness="1.8"
                          Stroke="{DynamicResource TextFaintBrush}"/>
@@ -665,15 +676,21 @@
 
                             <!--
                                 The GIF chosen in Settings, just under the tip; with none
-                                chosen there is no box at all. The box is nearly square,
-                                nine tenths as tall as it is wide, so it grows with the
-                                sidebar. The player decodes it once at this size and
-                                animates only while it can be seen.
+                                chosen, or the box hidden, there is no box at all. At its
+                                full height the box is nearly square, nine tenths as tall
+                                as it is wide, so it grows with the sidebar; Settings can
+                                make it shorter. The player decodes it once at this size
+                                and animates only while it can be seen.
                             -->
                             <Grid DockPanel.Dock="Bottom" Margin="2,10,2,0"
-                                  Height="{Binding ActualWidth, RelativeSource={RelativeSource Self}, Converter={StaticResource Scale}, ConverterParameter=0.9}"
-                                  Visibility="{Binding HasSidebarGif, Converter={StaticResource Vis}}">
-                                <!-- The GIF in a rounded frame; its two actions appear while the pointer is over it -->
+                                  Visibility="{Binding ShowSidebarGif, Converter={StaticResource Vis}}">
+                                <Grid.Height>
+                                    <MultiBinding Converter="{StaticResource Product}" ConverterParameter="0.9">
+                                        <Binding Path="ActualWidth" RelativeSource="{RelativeSource Self}"/>
+                                        <Binding Path="SidebarGifHeight"/>
+                                    </MultiBinding>
+                                </Grid.Height>
+                                <!-- The GIF in a rounded frame; its actions appear while the pointer is over it -->
                                 <Border x:Name="GifFrame" CornerRadius="10" Background="{DynamicResource SurfaceMutedBrush}"
                                         BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="1">
                                     <Grid ui:RoundedClip.Radius="9">
@@ -692,6 +709,11 @@
                                                 </Style>
                                             </Border.Style>
                                             <StackPanel Orientation="Horizontal">
+                                                <Button Style="{StaticResource IconButton}" Width="22" Height="22"
+                                                        ToolTip="Hide the GIF. Settings shows it again." Command="{Binding ToggleSidebarGifHiddenCommand}">
+                                                    <ui:Icon Data="{StaticResource IconEyeOff}" Size="12" StrokeThickness="2"
+                                                             Stroke="{DynamicResource TextSecondaryBrush}"/>
+                                                </Button>
                                                 <Button Style="{StaticResource IconButton}" Width="22" Height="22"
                                                         ToolTip="Choose another GIF" Command="{Binding ChooseGifCommand}">
                                                     <ui:Icon Data="{StaticResource IconImage}" Size="12" StrokeThickness="2"
@@ -1270,7 +1292,7 @@
              shadow, and the offset takes it back, so the list lines up with the bar. -->
         <Popup x:Name="QuickPopup" PlacementTarget="{Binding ElementName=SearchBar}" Placement="Bottom"
                HorizontalOffset="-40" AllowsTransparency="True" StaysOpen="True" PopupAnimation="None" Focusable="False">
-            <Grid x:Name="QuickHost" Margin="40,6,40,64">
+            <Grid x:Name="QuickHost" Margin="40,6,40,64" LayoutTransform="{Binding AppTransform, Source={x:Static ui:Display.Current}}">
                 <views:QuickAccessPanel x:Name="QuickPanel" Width="640" DataContext="{Binding QuickAccess}"/>
             </Grid>
         </Popup>

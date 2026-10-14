@@ -29,29 +29,50 @@ public static class DialogService
     /// or Cancel (Escape), which stays put.
     /// </summary>
     public static SaveChoice AskToSave(string message, string title = "Unsaved changes")
-        => Present(message, title, isConfirm: true, "Save", "Cancel", destructive: false, alternate: "Don't save") switch
+        => Present(message, title, isConfirm: true, "Save", "Cancel", destructive: false, alternate: "Don't save").Answer switch
         {
             Answer.Yes => SaveChoice.Save,
             Answer.Alternate => SaveChoice.Discard,
             _ => SaveChoice.Cancel
         };
 
+    /// <summary>
+    /// A question with two named answers besides Cancel: <paramref name="yes"/>
+    /// (Enter), and <paramref name="alternate"/> apart on the left. Escape
+    /// cancels. A tick box under the question, worded <paramref name="remember"/>,
+    /// lets the answer stand from now on; <c>Remember</c> says whether it was ticked.
+    /// </summary>
+    public static (ThreeWay Choice, bool Remember) Choose(string message, string title, string yes, string alternate, string remember)
+    {
+        var (answer, remembered) = Present(message, title, isConfirm: true, yes, "Cancel", destructive: false, alternate, remember);
+        var choice = answer switch
+        {
+            Answer.Yes => ThreeWay.Yes,
+            Answer.Alternate => ThreeWay.Alternate,
+            _ => ThreeWay.Cancel
+        };
+        return (choice, remembered && choice != ThreeWay.Cancel);
+    }
+
     private enum Answer { No, Yes, Alternate }
 
     private static bool Show(string message, string title, bool isConfirm,
                              string yes = "Confirm", string no = "Cancel", bool destructive = true)
-        => Present(message, title, isConfirm, yes, no, destructive, alternate: null) == Answer.Yes;
+        => Present(message, title, isConfirm, yes, no, destructive, alternate: null).Answer == Answer.Yes;
 
-    private static Answer Present(string message, string title, bool isConfirm,
-                                  string yes, string no, bool destructive, string? alternate)
+    private static (Answer Answer, bool Remember) Present(string message, string title, bool isConfirm,
+                                                          string yes, string no, bool destructive, string? alternate,
+                                                          string? remember = null)
     {
         var result = Answer.No;
+        var scale = Controls.Display.Current.AppScale;
 
         var dialog = new Window
         {
             Title = title,
             SizeToContent = SizeToContent.Height,
-            Width = 420,
+            // The card inside grows with the app's size; the 18 around it is the room its shadow takes.
+            Width = 36 + 384 * scale,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             WindowStyle = WindowStyle.None,
             ResizeMode = ResizeMode.NoResize,
@@ -88,8 +109,39 @@ public static class DialogService
             LineHeight = 20,
             Foreground = Res("TextSubtleBrush"),
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 18)
+            Margin = new Thickness(0, 0, 0, remember == null ? 18 : 12)
         });
+
+        CheckBox? rememberBox = null;
+        if (remember != null)
+        {
+            rememberBox = new CheckBox
+            {
+                Style = (Style)Application.Current.FindResource("TickBox"),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var tick = rememberBox;
+            var line = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Background = Brushes.Transparent,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Margin = new Thickness(0, 0, 0, 18)
+            };
+            line.Children.Add(tick);
+            line.Children.Add(new TextBlock
+            {
+                Text = remember,
+                FontFamily = Font(),
+                FontSize = 12,
+                Margin = new Thickness(8, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Res("TextSecondaryBrush")
+            });
+            // The words tick the box too; the box itself takes its own clicks.
+            line.MouseLeftButtonUp += (_, _) => tick.IsChecked = tick.IsChecked != true;
+            stack.Children.Add(line);
+        }
 
         var buttons = new StackPanel
         {
@@ -137,6 +189,7 @@ public static class DialogService
 
         dialog.Content = new Border
         {
+            LayoutTransform = Controls.Display.Current.AppTransform,
             Margin = new Thickness(18),
             CornerRadius = new CornerRadius(14),
             Background = Res("SurfaceBrush"),
@@ -161,7 +214,7 @@ public static class DialogService
 
         dialog.ShowDialog();
         dialog.Owner?.Activate();
-        return result;
+        return (result, rememberBox?.IsChecked == true);
     }
 
     private static Brush Res(string key) => (Brush)Application.Current.FindResource(key);
@@ -170,3 +223,6 @@ public static class DialogService
 
 /// <summary>What to do with changes not yet saved.</summary>
 public enum SaveChoice { Save, Discard, Cancel }
+
+/// <summary>The answer to a question with two named answers besides Cancel.</summary>
+public enum ThreeWay { Yes, Alternate, Cancel }

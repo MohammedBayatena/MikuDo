@@ -5,6 +5,7 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MikuDo.Models;
+using MikuDo.Services;
 
 namespace MikuDo.ViewModels;
 
@@ -73,6 +74,9 @@ public partial class TaskCardViewModel : ObservableObject
     /// <summary>A card is dragged over this one and could be linked beneath it: the link strip shows beside its grip.</summary>
     [ObservableProperty] private bool _linkZoneShown;
 
+    /// <summary>The card leads its list, so there is no higher to move it.</summary>
+    [ObservableProperty] private bool _isAtTop;
+
     /// <summary>The title is being edited on the card itself.</summary>
     [ObservableProperty] private bool _isRenaming;
 
@@ -126,6 +130,25 @@ public partial class TaskCardViewModel : ObservableObject
 
     /// <summary>The corner label counts attachments, there being no subtasks to count: it takes the paperclip.</summary>
     public bool SubtitleIsAttachments => SubtaskCount == 0 && AttachmentCount > 0;
+
+    /// <summary>
+    /// When the task was made, as short as it goes: "9:12 AM", "Fri",
+    /// "16 Mar", "Mar 2025". Empty when it was edited on that same day, so the
+    /// one date is said once, after both icons.
+    /// </summary>
+    public string CreatedShort => TaskDates.WasEdited(Item) && SameDay ? string.Empty : When.Brief(Item.CreatedAt);
+
+    /// <summary>When the title, description or labels were last edited, in the same form; empty if never.</summary>
+    public string EditedShort => TaskDates.WasEdited(Item) ? When.Brief(Item.EditedAt!.Value) : string.Empty;
+
+    private bool SameDay => Item.CreatedAt.ToLocalTime().Date == Item.EditedAt!.Value.ToLocalTime().Date;
+
+    /// <summary>Says the dates again once the day turns, when "9:12 AM" has become "Wed".</summary>
+    public void RaiseDates()
+    {
+        OnPropertyChanged(nameof(CreatedShort));
+        OnPropertyChanged(nameof(EditedShort));
+    }
 
     // The two columns this card is not in, in board order, for its ⋯ menu.
     public string OtherColumnA => Item.Status == TodoStatus.Active ? "Doing" : "To do";

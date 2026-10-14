@@ -24,6 +24,9 @@ namespace MikuDo.Controls;
 /// Windows is set to show no animations.</item>
 /// <item>The frames are held to a fixed memory budget; a GIF too long for it
 /// keeps every second frame, or third, with the timing of the whole kept.</item>
+/// <item>A box being resized, as by dragging the sidebar or its height, is
+/// decoded again only once it has stayed one size for a moment; meanwhile the
+/// frames it has are stretched to fit.</item>
 /// </list>
 /// </remarks>
 public class GifPlayer : FrameworkElement
@@ -51,18 +54,39 @@ public class GifPlayer : FrameworkElement
     private (int Width, int Height) _decodedFor;
     private Window? _window;
     private readonly DispatcherTimer _timer = new();
+    private readonly DispatcherTimer _settle = new() { Interval = TimeSpan.FromMilliseconds(160) };
 
     public GifPlayer()
     {
         _timer.Tick += OnTick;
+        _settle.Tick += (_, _) =>
+        {
+            _settle.Stop();
+            if (TargetPixels() != _decodedFor) Reload();
+        };
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         IsVisibleChanged += (_, _) => UpdateRunning();
-        SizeChanged += (_, _) =>
+        SizeChanged += (_, _) => Resized();
+    }
+
+    /// <summary>The first size is decoded for at once; a change after that waits until the size settles.</summary>
+    private void Resized()
+    {
+        if (TargetPixels() == _decodedFor) return;
+        if (_frames == null)
         {
-            if (TargetPixels() != _decodedFor) Reload();
-        };
+            Reload();
+            return;
+        }
+        _settle.Stop();
+        _settle.Start();
+    }
+
+    private void OnDisplayChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Display.AppScale)) Resized();
     }
 
     /// <summary>Takes whatever box it is given; the frames are made to fit it.</summary>
@@ -75,6 +99,8 @@ public class GifPlayer : FrameworkElement
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        Display.Current.PropertyChanged -= OnDisplayChanged;
+        Display.Current.PropertyChanged += OnDisplayChanged;
         _window = Window.GetWindow(this);
         if (_window != null)
         {
@@ -88,6 +114,8 @@ public class GifPlayer : FrameworkElement
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         _timer.Stop();
+        _settle.Stop();
+        Display.Current.PropertyChanged -= OnDisplayChanged;
         if (_window == null) return;
         _window.Activated -= OnWindowChanged;
         _window.Deactivated -= OnWindowChanged;
@@ -97,12 +125,13 @@ public class GifPlayer : FrameworkElement
 
     private void OnWindowChanged(object? sender, EventArgs e) => UpdateRunning();
 
-    /// <summary>The box in device pixels, which is the size the frames are made at.</summary>
+    /// <summary>The box in device pixels, at the app's size, which is the size the frames are made at.</summary>
     private (int Width, int Height) TargetPixels()
     {
         if (ActualWidth <= 0 || ActualHeight <= 0) return (0, 0);
         var dpi = VisualTreeHelper.GetDpi(this);
-        return ((int)Math.Round(ActualWidth * dpi.DpiScaleX), (int)Math.Round(ActualHeight * dpi.DpiScaleY));
+        var scale = Display.Current.AppScale;
+        return ((int)Math.Round(ActualWidth * dpi.DpiScaleX * scale), (int)Math.Round(ActualHeight * dpi.DpiScaleY * scale));
     }
 
     /// <summary>
@@ -156,8 +185,9 @@ public class GifPlayer : FrameworkElement
         else
         {
             var dpi = VisualTreeHelper.GetDpi(this);
+            var scale = Display.Current.AppScale;
             _bitmap = new WriteableBitmap(frames.Width, frames.Height,
-                                          96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32, null);
+                                          96 * dpi.DpiScaleX * scale, 96 * dpi.DpiScaleY * scale, PixelFormats.Pbgra32, null);
             Paint(0);
         }
         InvalidateVisual();

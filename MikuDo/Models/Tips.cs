@@ -33,7 +33,12 @@ public static class Tips
         "Double-click a workspace to rename it.",
         "The dashboard can show one workspace or all of them: pick at its top right.",
         "Undo on the board toolbar takes back moves, priorities, links and more.",
-        "Export turns the lists on screen into Markdown, long notes summarized."
+        "Export turns the lists on screen into Markdown, long notes summarized.",
+        "Hold Ctrl and turn the wheel over a note to make its text larger or smaller.",
+        "{window.next} steps between MikuDo and the notes open in windows of their own.",
+        "Settings, under App size, draws the whole app larger when it is hard to read.",
+        "Right-click a note's preview to copy, zoom, or set the page in a centred column.",
+        "The arrow at the top of a card's actions moves it to the top of its list."
     };
 
     /// <summary>The tip with each command's keys written in; null when one of them has none.</summary>

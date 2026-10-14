@@ -13,6 +13,11 @@ public partial class MainWindow : Window
         InitializeComponent();
         MaximizeFix.Apply(this);
         RoundedWindow.Apply(this, CornerRadius);
+        Controls.Display.Scale(this, (FrameworkElement)Content, TitleBarHeight);
+        Controls.Display.Current.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Controls.Display.AppScale)) SizeQuickAccess();
+        };
 
         // WPF drops a Maximized WindowState set before Show() when it also has to
         // centre the window, so it is applied once the handle exists — still
@@ -52,6 +57,48 @@ public partial class MainWindow : Window
     private bool _taskPageClosed;
     private bool _noteChecked;
     private bool _readersClosed;
+
+    // ── Reader windows ──────────────────────────────────────────
+
+    private void Windows_Click(object sender, RoutedEventArgs e) => WindowSwitcher.OpenMenu(WindowsButton);
+
+    /// <summary>
+    /// What closing does with reader windows still open: as Settings says, or
+    /// as the user answers. Null when they chose to keep the app as it is.
+    /// </summary>
+    private string? ReadersChoice(MainViewModel vm)
+    {
+        if (vm.ReadersOnClose != MainViewModel.ReadersAsk) return vm.ReadersOnClose;
+
+        var count = NoteWindow.All.Count;
+        var (choice, remember) = Services.DialogService.Choose(
+            count == 1
+                ? $"{NoteWindow.All[0].Note.FileName} is open in a window of its own. It can stay open for reading after the main window closes."
+                : $"{count} notes are open in windows of their own. They can stay open for reading after the main window closes.",
+            count == 1 ? "Keep the reader window open?" : "Keep the reader windows open?",
+            "Keep open", count == 1 ? "Close it too" : "Close them too", "Don't ask again (Settings can change it)");
+
+        var answer = choice switch
+        {
+            Services.ThreeWay.Yes => MainViewModel.ReadersKeep,
+            Services.ThreeWay.Alternate => MainViewModel.ReadersClose,
+            _ => null
+        };
+        if (remember && answer != null) vm.ReadersOnClose = answer;
+        return answer;
+    }
+
+    /// <summary>
+    /// The main window steps aside for the reader windows: its page is put
+    /// away, then it hides. Starting MikuDo again, or Open in MikuDo in a
+    /// reader, brings it back; when the last reader closes, so does the app.
+    /// </summary>
+    private void HideBehindReaders(MainViewModel vm)
+    {
+        if (!vm.SettleForHiding()) return;
+        Hide();
+        if (NoteWindow.All.LastOrDefault() is { } reader) reader.BringForward();
+    }
 
     // ── Notes ───────────────────────────────────────────────────
 
@@ -230,6 +277,22 @@ public partial class MainWindow : Window
     /// </summary>
     private async void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        // Reader windows can outlive this one, which then only hides.
+        if (!_readersClosed && NoteWindow.All.Count > 0 && DataContext is MainViewModel shell)
+        {
+            switch (ReadersChoice(shell))
+            {
+                case MainViewModel.ReadersKeep:
+                    // A window cannot hide while it is closing, so it waits until this close has been called off.
+                    e.Cancel = true;
+                    _ = Dispatcher.BeginInvoke(() => HideBehindReaders(shell));
+                    return;
+                case null:
+                    e.Cancel = true;
+                    return;
+            }
+        }
+
         // A note with changes not saved to its file asks first; Cancel keeps the app open.
         if (!_noteChecked && DataContext is MainViewModel { OpenNotePage: { } note })
         {
@@ -358,15 +421,17 @@ public partial class MainWindow : Window
         SizeQuickAccess();
     }
 
+    /// <summary>The bar and its list fit the window as the app's size draws it: a larger size leaves less room.</summary>
     private void SizeQuickAccess()
     {
-        var room = Math.Max(320, ActualWidth - SearchSideRoom);
+        var scale = Controls.Display.Current.AppScale;
+        var room = Math.Max(320, ActualWidth / scale - SearchSideRoom);
         var open = Quick?.IsOpen == true;
         SearchBar.Width = Math.Min(open ? QuickWidth : SearchWidth, room);
         SearchBar.Height = open ? 32 : 30;
         SearchBar.Margin = new Thickness(0, open ? 6 : 7, 0, 0);
         QuickPanel.Width = Math.Min(QuickWidth, room);
-        QuickPanel.MaxHeight = Math.Max(200, ActualHeight - 44 - 24);
+        QuickPanel.MaxHeight = Math.Max(200, ActualHeight / scale - 44 - 24);
     }
 
     /// <summary>The list's own keys. Everything else goes to the bar's text, or on to the window.</summary>

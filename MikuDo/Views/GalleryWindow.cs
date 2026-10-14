@@ -67,7 +67,8 @@ public sealed class GalleryWindow : Window
         var backdrop = new Image { Source = CaptureScreen(_bounds), Stretch = Stretch.Fill, Effect = blur };
         var scrim = new Rectangle { Opacity = ScrimOpacity };
         scrim.SetResourceReference(Shape.FillProperty, "GalleryScrimBrush");
-        _viewer = new GalleryOverlay { DataContext = gallery };
+        // The viewer's own bar and buttons are drawn at the app's size; the blurred app behind is a picture of it already.
+        _viewer = new GalleryOverlay { DataContext = gallery, LayoutTransform = Controls.Display.Current.AppTransform };
 
         Content = new Grid { ClipToBounds = true, Children = { backdrop, scrim, _viewer } };
 

@@ -6,6 +6,10 @@ public static class SettingsSections
     public const string Screenshot = "SectionScreenshot";
     public const string Theme = "SectionTheme";
     public const string Layout = "SectionLayout";
+    public const string AppSize = "SectionAppSize";
+    public const string Notes = "SectionNotes";
+    public const string NoteText = "SectionNoteText";
+    public const string Readers = "SectionReaders";
     public const string AutoSave = "SectionAutoSave";
     public const string AiModel = "SectionAiModel";
     public const string Tips = "SectionTips";
@@ -32,7 +36,19 @@ public sealed record SettingEntry(string Name, string Area, string Description, 
         new("Layout", "Appearance",
             "Islands sets each list and panel on the page as a card of its own. Flat runs them edge to edge, divided by borders, with each list under a heading in its colour. Works with every theme.",
             SettingsSections.Layout, _ => Controls.Layout.Current.IsFlat ? "Flat" : "Islands"),
-        new("Screenshot Mode", "Capture",
+        new("App size", "Accessibility",
+            "Draws the whole app larger: text, lists, buttons and menus. The normal size is the smallest; each step up makes everything easier to read.",
+            SettingsSections.AppSize, _ => Controls.Display.Current.AppScaleLabel),
+        new("Note width", "Notes",
+            "Where a note's page sits, on the Notes page and in reader windows: across the whole width, or in a centred column that is easier to read.",
+            SettingsSections.Notes, _ => Controls.Display.Current.IsNoteCentered ? "Centred column" : "Full width"),
+        new("Note text size", "Accessibility",
+            "How large a note's text is drawn. Ctrl with the wheel, or Ctrl + and Ctrl −, change it while reading; Ctrl 0 puts it back.",
+            SettingsSections.NoteText, _ => Controls.Display.Current.NoteZoomLabel),
+        new("Reader windows when MikuDo closes", "Notes",
+            "Notes open in windows of their own can stay open after the main window closes, or close with it.",
+            SettingsSections.Readers, main => MainViewModel.ReadersOnCloseLabel(main.ReadersOnClose)),
+        new("Screenshot Mode", "Tasks",
             "Choose whether Take a screenshot captures the primary monitor or every screen",
             SettingsSections.Screenshot, main => main.ScreenshotAllScreens ? "All screens" : "Primary monitor"),
         new("Auto Save", "Tasks",
@@ -45,12 +61,12 @@ public sealed record SettingEntry(string Name, string Area, string Description, 
             "A short tip about a feature, now and then, at the foot of the sidebar.",
             SettingsSections.Tips, main => OnOff(main.IsTipsOn)),
         new("Sidebar GIF", "Sidebar",
-            "Pick a GIF and it plays in a box under the tip. With none picked, the sidebar has no box. It only animates while MikuDo is in front of you, so it costs next to nothing.",
-            SettingsSections.Gif, main => main.HasSidebarGif ? "chosen" : "none"),
-        new("Dictation", "Dictation",
+            "Pick a GIF and it plays in a box under the tip. The last five picked stay here to switch between, and the box can be hidden or made shorter. It only animates while MikuDo is in front of you, so it costs next to nothing.",
+            SettingsSections.Gif, main => !main.HasSidebarGif ? "none" : main.IsSidebarGifHidden ? "hidden" : "shown"),
+        new("Dictation", "AI",
             "Speak on a task's page and your words go into its description. The speech model runs on your CPU, so nothing you say leaves this PC. Until one is downloaded, Dictate stays greyed out.",
             SettingsSections.Dictation, _ => null),
-        new("Default dictation mode", "Dictation",
+        new("Default dictation mode", "AI",
             "Exact puts your words in as spoken. Write up has the AI Import model turn them into a tidy description: filler words out, lists as bullet points.",
             SettingsSections.DictationMode, _ => App.Database.GetSetting("DictationWriteUp") != "False" ? "Write up" : "Exact"),
         new("Database Backup", "Data",

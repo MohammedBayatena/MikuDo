@@ -477,6 +477,12 @@ public partial class BoardViewModel : ObservableObject
     /// <summary>Every row currently known, in no particular order.</summary>
     private IEnumerable<TaskCardViewModel> AllCards => _cards.Values;
 
+    /// <summary>Has every card say its dates again, once the day has turned.</summary>
+    public void RefreshDates()
+    {
+        foreach (var card in AllCards) card.RaiseDates();
+    }
+
     private static bool Matches(TodoItem t, string query)
         => t.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
            t.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
@@ -534,6 +540,7 @@ public partial class BoardViewModel : ObservableObject
             scope = scope.Where(t => kept.Contains(t.IdText)).ToList();
         }
 
+        var leaders = new HashSet<TaskCardViewModel>();
         foreach (var column in Columns)
         {
             var mine = list.Where(t => t.Status == column.Status && !nested.Contains(t.IdText));
@@ -568,6 +575,7 @@ public partial class BoardViewModel : ObservableObject
             // coming back to it only pays for what changed in between.
             if (IsKanban) Sync(column.Cards, visible);
             if (IsList) Sync(column.ListCards, visible);
+            if (!IsTable && visible.Count > 0) leaders.Add(Card(visible[0]));
 
             if (!IsTable && column.IsVisible)
                 foreach (var t in column.Items) shown.Add(t.IdText);
@@ -588,11 +596,19 @@ public partial class BoardViewModel : ObservableObject
             foreach (var t in _table) shown.Add(t.IdText);
         }
 
+        if (IsTable && _table.Count > 0) leaders.Add(Card(_table[0]));
+        foreach (var card in _leaders) if (!leaders.Contains(card)) card.IsAtTop = false;
+        foreach (var card in leaders) card.IsAtTop = true;
+        _leaders = leaders;
+
         // A task the filters just hid cannot stay selected.
         if (_selectedIds.RemoveWhere(id => !shown.Contains(id)) > 0) RaiseSelectionChanged();
 
         IsEmpty = list.Count == 0;
     }
+
+    /// <summary>The cards that lead their list, as the last rebuild found them.</summary>
+    private HashSet<TaskCardViewModel> _leaders = new();
 
     // ── Grouping by parent ──────────────────────────────────────
 
@@ -1352,6 +1368,60 @@ public partial class BoardViewModel : ObservableObject
         item.CompletedAt = status == TodoStatus.Completed ? DateTime.UtcNow : null;
         App.Database.UpsertTodo(item);
     }
+
+    /// <summary>
+    /// Puts a card, or the selection it belongs to, at the top of its list,
+    /// ahead of every card placed on the board; a selection keeps its own
+    /// order. The other cards stay where they were put. A list shown in an
+    /// order of its own, such as by priority, goes back to the order cards were
+    /// put in, or the move could not be seen.
+    /// </summary>
+    [RelayCommand]
+    private void MoveToTop(TaskCardViewModel? card)
+    {
+        if (card == null) return;
+
+        var shownAt = Columns.SelectMany(c => c.Items).Concat(_table)
+                             .Select((t, i) => (t.IdText, i))
+                             .GroupBy(p => p.IdText)
+                             .ToDictionary(g => g.Key, g => g.First().i, StringComparer.Ordinal);
+        var targets = TargetsFor(card).OrderBy(t => shownAt.GetValueOrDefault(t.IdText, int.MaxValue)).ToList();
+        var snapshots = targets.Select(t => t.Snapshot()).ToList();
+
+        var top = _source.Where(t => t.IsPlaced).Select(t => t.SortOrder).DefaultIfEmpty(0).Min();
+        var next = top - 1000 * targets.Count;
+        foreach (var item in targets)
+        {
+            item.SortOrder = next;
+            item.IsPlaced = true;
+            App.Database.UpsertTodo(item);
+            next += 1000;
+        }
+
+        if (IsAllTasks && !IsTable)
+        {
+            var sorted = false;
+            foreach (var column in Columns.Where(c => targets.Any(t => t.Status == c.Status)))
+            {
+                if ((column.SortBy ?? SortBy) == TaskOrder.Manual) continue;
+                column.SortBy = SortBy == TaskOrder.Manual ? null : TaskOrder.Manual;
+                sorted = true;
+            }
+            if (sorted)
+            {
+                RaiseSortLabel();
+                SaveSort();
+            }
+        }
+
+        _main.PushUndo(targets.Count > 1 ? "move to top" : "move task to top", WorkspaceId, () => Restore(snapshots));
+        CloseAllMenus();
+        ClearSelection();
+        Reload();
+    }
+
+    /// <summary>The first of the selected cards, for actions taken from the keyboard.</summary>
+    public TaskCardViewModel? FirstSelectedCard => FirstSelected();
 
     /// <summary>Names of the two columns a card is not currently in.</summary>
     public IEnumerable<string> OtherColumnNames(TaskCardViewModel card)

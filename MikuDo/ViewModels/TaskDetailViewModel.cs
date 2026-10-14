@@ -226,6 +226,24 @@ public partial class TaskDetailViewModel : ObservableObject
     public bool IsExistingTask => _existing != null;
     public string WorkspaceLabel { get; }
 
+    /// <summary>
+    /// "Created on 3 Oct at 14:32 · Edited today at 09:12", in the user's own
+    /// time zone. Empty for a task not saved yet.
+    /// </summary>
+    public string DatesLabel => _existing == null ? string.Empty : TaskDates.Label(_existing);
+
+    /// <summary>Both moments in full, and the time zone they are shown in.</summary>
+    public string DatesTooltip => _existing == null ? string.Empty : TaskDates.Tooltip(_existing);
+
+    public bool HasDates => _existing != null;
+
+    private void RaiseDates()
+    {
+        OnPropertyChanged(nameof(DatesLabel));
+        OnPropertyChanged(nameof(DatesTooltip));
+        OnPropertyChanged(nameof(HasDates));
+    }
+
     public string StatusName => Palette.ColumnName(Status);
     public Brush StatusForeground => Palette.StatusForeground(Status);
     public bool ShowEditor => EditorMode is "Edit" or "Split";
@@ -1809,15 +1827,32 @@ public partial class TaskDetailViewModel : ObservableObject
             item.Status = Status;
             item.CompletedAt = Status == TodoStatus.Completed ? DateTime.UtcNow : null;
 
-            var (encTitle, titleIv) = App.Encryption.Encrypt(title);
-            var (encDesc, descIv) = App.Encryption.Encrypt(Markdown ?? "");
-            item.Title = encTitle;
-            item.EncryptionTitleIV = titleIv;
-            item.Description = encDesc;
-            item.EncryptionIV = descIv;
+            // Encrypting gives new ciphertext even for the same words, and a save
+            // is told from an edit by comparing what is stored, so only the
+            // words that changed are encrypted again.
+            var markdown = Markdown ?? "";
+            if (_existing == null || item.EncryptionTitleIV == null || title != _existing.Title)
+            {
+                var (encTitle, titleIv) = App.Encryption.Encrypt(title);
+                item.Title = encTitle;
+                item.EncryptionTitleIV = titleIv;
+            }
+            if (_existing == null || item.EncryptionIV == null || markdown != _existing.Description)
+            {
+                var (encDesc, descIv) = App.Encryption.Encrypt(markdown);
+                item.Description = encDesc;
+                item.EncryptionIV = descIv;
+            }
 
             App.Database.UpsertVaultTodo(item);
+
+            // The page keeps the words as typed, for the next save to compare with.
             _existing ??= item;
+            _existing.Title = title;
+            _existing.Description = markdown;
+            _existing.Tags = new List<string>(item.Tags);
+            _existing.UpdatedAt = item.UpdatedAt;
+            _existing.EditedAt = item.EditedAt;
         }
         else
         {
@@ -1847,6 +1882,7 @@ public partial class TaskDetailViewModel : ObservableObject
 
         foreach (var id in _removedMediaIds) App.Database.DeleteImage(id);
         _removedMediaIds.Clear();
+        RaiseDates();
     }
 
     private void DiscardNewMedia()

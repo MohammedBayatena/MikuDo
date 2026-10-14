@@ -525,6 +525,13 @@ public sealed partial class QuickAccessViewModel : ObservableObject
         rows.Add(ModeRow(QuickMode.Notes, "Notes", "IconNoteSmall", "quick.notes"));
         rows.Add(ModeRow(QuickMode.Settings, "Settings", "IconSettings", "quick.settings"));
 
+        var windows = FindWindows(Array.Empty<string>());
+        if (windows.Count > 0)
+        {
+            rows.Add(new QuickHeader("OPEN WINDOWS", count: windows.Count.ToString()));
+            rows.AddRange(windows.Select(w => WindowRow(w, Array.Empty<string>())));
+        }
+
         rows.Add(new QuickHeader("COMMANDS", "· used most"));
         foreach (var command in _main.MostUsedCommands(6))
             rows.Add(CommandRow(command, words: null, useHint: true));
@@ -606,6 +613,7 @@ public sealed partial class QuickAccessViewModel : ObservableObject
         var notes = FindNotesByName(words);
         var settings = FindSettings(words);
         var commands = FindCommands(words);
+        var windows = FindWindows(words);
 
         List<QuickRow> Compose(List<NoteMatch> noteList)
         {
@@ -615,6 +623,7 @@ public sealed partial class QuickAccessViewModel : ObservableObject
                 list.Add(new QuickHeader($"THIS {_main.FindHost?.FindNoun.ToUpperInvariant()}"));
                 list.Add(here);
             }
+            Group(list, "OPEN WINDOWS", windows.Count, windows.Select(w => WindowRow(w, words)), null);
             Group(list, "TASKS", tasks.Count, tasks.Take(TaskPreview).Select(t => TaskRow(t.Task, words, match: t)),
                   tasks.Count > TaskPreview ? ShowAllTasks(tasks.Count) : null);
             Group(list, "NOTES", noteList.Count, noteList.Take(NotePreview).Select(n => NoteRow(n, words)),
@@ -629,7 +638,7 @@ public sealed partial class QuickAccessViewModel : ObservableObject
         // Notes found by name show at once; those found by a line inside join as the files are read.
         rows.AddRange(Compose(notes));
         SearchNoteLines(words, notes, found => Compose(notes.Concat(found).ToList()));
-        var count = tasks.Count + notes.Count + settings.Count + commands.Count;
+        var count = tasks.Count + notes.Count + settings.Count + commands.Count + windows.Count;
         // Under the page's own find, the list still says that nothing else matched.
         if (count == 0 && rows.Count > 0) rows.Add(new QuickEmpty($"No task, note, setting or command matches “{Query.Trim()}”"));
         return count;
@@ -901,6 +910,27 @@ public sealed partial class QuickAccessViewModel : ObservableObject
             }
         };
     }
+
+    // ── Reader windows ──────────────────────────────────────────
+
+    /// <summary>The reader windows whose note's name has every word typed; all of them with nothing typed.</summary>
+    private static List<Views.NoteWindow> FindWindows(IReadOnlyList<string> words)
+        => Views.NoteWindow.All.Where(w => words.Count == 0 || QuickSearch.Has(w.Note.FileName, words)).ToList();
+
+    /// <summary>A note open in a reader window: picked, the window comes forward.</summary>
+    private QuickItem WindowRow(Views.NoteWindow window, IReadOnlyList<string> words) => new()
+    {
+        Icon = Icon("IconWindows"),
+        Title = window.Note.FileName,
+        TitleWords = words.Count > 0 ? words : null,
+        Detail = ShortFolder(_main.NoteFolderLabel(window.Note.Path)),
+        Hint = window.Note.IsDirty ? "window · unsaved" : "window",
+        Activate = _ =>
+        {
+            Close();
+            Views.WindowSwitcher.Show(window);
+        }
+    };
 
     // ── Settings ────────────────────────────────────────────────
 

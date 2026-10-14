@@ -19,11 +19,13 @@ public class MarkdownService
     /// The note as a page in the active theme's colours, read from its semantic
     /// tokens. <paramref name="reading"/> lays it out for reading a whole
     /// document, as Notes does: larger type, across the whole width the page
-    /// is given. Relative links and images resolve against
-    /// <paramref name="baseHref"/>. A <paramref name="kicker"/> gives the page
-    /// a reader window's roomier margins, with the kicker's line above it.
+    /// is given, or in a column down its middle when <paramref name="centered"/>.
+    /// Relative links and images resolve against <paramref name="baseHref"/>. A
+    /// <paramref name="kicker"/> gives the page a reader window's roomier
+    /// margins, with the kicker's line above it.
     /// </summary>
-    public string ToHtml(string markdown, bool reading = false, string? baseHref = null, string? kicker = null)
+    public string ToHtml(string markdown, bool reading = false, string? baseHref = null, string? kicker = null,
+                         bool centered = false)
     {
         var surface = Palette.Css("SurfaceBrush");
         var heading = Palette.Css("TextPrimaryBrush");
@@ -74,6 +76,7 @@ public class MarkdownService
         string ReadingCss() => $$"""
             body{font-size:14.5px;line-height:1.65;padding:26px 36px 48px 24px}
             body:has(main.column){padding:36px 44px 48px}
+            {{(centered ? "main.note{max-width:760px;margin:0 auto}" : "")}}
             main.column h1{font-size:30px}
             main.column>p{font-size:15px;line-height:1.7}
             .mikudo-kicker{font-size:11.5px;font-weight:600;color:{{faint}};margin:0 0 14px;overflow-wrap:anywhere}

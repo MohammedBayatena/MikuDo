@@ -252,7 +252,8 @@ public partial class MainViewModel
             IsDimmed = dimmed,
             IsHiddenItem = hiddenItem,
             IsActive = active,
-            IsDirty = active && open!.IsDirty
+            IsDirty = active && open!.IsDirty,
+            IsInWindow = Views.NoteWindow.All.Count > 0 && Views.NoteWindow.Find(path) != null
         };
     }
 
@@ -327,6 +328,7 @@ public partial class MainViewModel
             var active = open != null && SamePath(row.Path, open.Path);
             row.IsActive = active;
             row.IsDirty = active && open!.IsDirty;
+            row.IsInWindow = Views.NoteWindow.Find(row.Path) != null;
         }
     }
 
