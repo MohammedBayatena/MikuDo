@@ -63,13 +63,37 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>
     /// The app's own copy of the GIF chosen in Settings, or null while none is.
-    /// The box under the tip is there only while one is chosen.
+    /// The box under the tip is there only while one is chosen and not hidden.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSidebarGif))]
+    [NotifyPropertyChangedFor(nameof(HasSidebarGif), nameof(ShowSidebarGif))]
     private string? _sidebarGifPath;
 
     public bool HasSidebarGif => SidebarGifPath != null;
+
+    /// <summary>The box is put away, its GIF kept, until Settings or its eye shows it again.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSidebarGif))]
+    private bool _isSidebarGifHidden;
+
+    public bool ShowSidebarGif => HasSidebarGif && !IsSidebarGifHidden;
+
+    /// <summary>
+    /// How tall the box is, as a share of its full height: nine tenths of its
+    /// width. Its width is the sidebar's, so only the height is chosen.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SidebarGifHeightLabel))]
+    private double _sidebarGifHeight = 1;
+
+    public const double MinGifHeight = 0.3;
+
+    public string SidebarGifHeightLabel => Controls.Display.Percent(SidebarGifHeight);
+
+    /// <summary>The GIFs picked lately, newest first, kept so any of them can be shown again from Settings.</summary>
+    public ObservableCollection<GifChoice> RecentGifs { get; } = new();
+
+    private const int RecentGifLimit = 5;
 
     /// <summary>Files this size or larger are turned away: decoding them is slow and they hold no more than the box shows.</summary>
     private const long MaxGifBytes = 40L * 1024 * 1024;
@@ -107,6 +131,17 @@ public partial class MainViewModel : ObservableObject
         _groupByParent = App.Database.GetSetting("GroupByParent") == "True";
         _isTipsOn = App.Database.GetSetting("ShowTips") != "False";
         _sidebarGifPath = StoredGif();
+        _isSidebarGifHidden = App.Database.GetSetting("SidebarGifHidden") == "True";
+        _sidebarGifHeight = double.TryParse(App.Database.GetSetting("SidebarGifHeight"), System.Globalization.NumberStyles.Float,
+                                            System.Globalization.CultureInfo.InvariantCulture, out var height)
+            ? Math.Clamp(height, MinGifHeight, 1) : 1;
+        _readersOnClose = App.Database.GetSetting("ReadersOnClose") switch
+        {
+            ReadersKeep => ReadersKeep,
+            ReadersClose => ReadersClose,
+            _ => ReadersAsk
+        };
+        LoadRecentGifs();
         StartTips();
         // A tip names keys; when they change it is written again.
         Shortcuts.Changed += () => ShowTipAt(_tipIndex);
@@ -114,6 +149,31 @@ public partial class MainViewModel : ObservableObject
         ReloadRecentNotes();
         LoadNoteTree();
         NavigateToWorkspace(Workspaces.FirstOrDefault());
+        // A note's row shows when it is open in a reader window.
+        OpenReaders.Current.Changed += MarkNoteRows;
+        WatchForNewDay();
+    }
+
+    private System.Windows.Threading.DispatcherTimer? _dayTimer;
+
+    /// <summary>
+    /// Wakes just after midnight, so cards on the boards kept open say
+    /// "yesterday" for what they called "today".
+    /// </summary>
+    private void WatchForNewDay()
+    {
+        _dayTimer ??= new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background);
+        _dayTimer.Tick -= OnNewDay;
+        _dayTimer.Tick += OnNewDay;
+        _dayTimer.Interval = DateTime.Today.AddDays(1) - DateTime.Now + TimeSpan.FromSeconds(1);
+        _dayTimer.Start();
+    }
+
+    private void OnNewDay(object? sender, EventArgs e)
+    {
+        foreach (var board in _boards.Values) board.RefreshDates();
+        _searchBoard?.RefreshDates();
+        WatchForNewDay();
     }
 
     partial void OnScreenshotAllScreensChanged(bool value)
@@ -222,6 +282,67 @@ public partial class MainViewModel : ObservableObject
         return File.Exists(path) ? path : null;
     }
 
+    /// <summary>The recent GIFs as stored, with the one chosen before any were kept counted among them.</summary>
+    private void LoadRecentGifs()
+    {
+        var names = ReadJson<List<string>>("SidebarGifs") ?? new List<string>();
+        if (App.Database.GetSetting("SidebarGif") is { Length: > 0 } current && !names.Contains(current)) names.Insert(0, current);
+        RecentGifs.Clear();
+        foreach (var name in names.Take(RecentGifLimit))
+        {
+            var path = Path.Combine(MediaFolder, name);
+            if (File.Exists(path)) RecentGifs.Add(new GifChoice(path));
+        }
+        MarkCurrentGif();
+    }
+
+    private void SaveRecentGifs()
+        => App.Database.SaveSetting("SidebarGifs", System.Text.Json.JsonSerializer.Serialize(RecentGifs.Select(g => g.Name).ToList()));
+
+    private void MarkCurrentGif()
+    {
+        foreach (var gif in RecentGifs) gif.IsCurrent = SidebarGifPath != null && SamePath(gif.Path, SidebarGifPath);
+    }
+
+    partial void OnSidebarGifPathChanged(string? value) => MarkCurrentGif();
+
+    partial void OnIsSidebarGifHiddenChanged(bool value)
+        => App.Database.SaveSetting("SidebarGifHidden", value ? "True" : "False");
+
+    partial void OnSidebarGifHeightChanged(double value)
+        => App.Database.SaveSetting("SidebarGifHeight", value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+
+    [RelayCommand]
+    private void ToggleSidebarGifHidden() => IsSidebarGifHidden = !IsSidebarGifHidden;
+
+    /// <summary>"True" hides the box, "False" shows it.</summary>
+    [RelayCommand]
+    private void SetSidebarGifHidden(string? hidden) => IsSidebarGifHidden = hidden == "True";
+
+    /// <summary>Shows one of the recent GIFs in the sidebar, and the box with it if it was hidden.</summary>
+    [RelayCommand]
+    private void UseRecentGif(GifChoice? gif)
+    {
+        if (gif == null || !File.Exists(gif.Path)) return;
+        SidebarGifPath = gif.Path;
+        IsSidebarGifHidden = false;
+        App.Database.SaveSetting("SidebarGif", gif.Name);
+    }
+
+    /// <summary>Takes a GIF off the recent ones and deletes the app's copy; the file it was picked from is left alone.</summary>
+    [RelayCommand]
+    private void ForgetGif(GifChoice? gif)
+    {
+        if (gif == null || !RecentGifs.Remove(gif)) return;
+        if (SidebarGifPath != null && SamePath(gif.Path, SidebarGifPath))
+        {
+            SidebarGifPath = null;
+            App.Database.SaveSetting("SidebarGif", string.Empty);
+        }
+        SaveRecentGifs();
+        DeleteQuietly(gif.Path);
+    }
+
     [RelayCommand]
     private void ChooseGif()
     {
@@ -235,9 +356,9 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Copies <paramref name="file"/> in and shows it. The copy gets a new
-    /// name each time, so the box notices the change and nothing still
-    /// reading the last one is overwritten.
+    /// Copies <paramref name="file"/> in, shows it, and puts it first among the
+    /// recent GIFs. The copy is named for what is in it, so picking the same
+    /// GIF again finds the copy already there; the oldest past five is deleted.
     /// </summary>
     public void UseGif(string file)
     {
@@ -250,13 +371,27 @@ public partial class MainViewModel : ObservableObject
             }
 
             Directory.CreateDirectory(MediaFolder);
-            var name = $"sidebar-{Guid.NewGuid():N}{Path.GetExtension(file).ToLowerInvariant()}";
-            File.Copy(file, Path.Combine(MediaFolder, name));
+            string hash;
+            using (var stream = File.OpenRead(file))
+                hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream))[..16].ToLowerInvariant();
+            var name = $"sidebar-{hash}{Path.GetExtension(file).ToLowerInvariant()}";
+            var copy = Path.Combine(MediaFolder, name);
+            if (!File.Exists(copy)) File.Copy(file, copy);
 
-            var previous = SidebarGifPath;
-            SidebarGifPath = Path.Combine(MediaFolder, name);
+            var known = RecentGifs.FirstOrDefault(g => SamePath(g.Path, copy));
+            if (known != null) RecentGifs.Remove(known);
+            RecentGifs.Insert(0, known ?? new GifChoice(copy));
+            while (RecentGifs.Count > RecentGifLimit)
+            {
+                var oldest = RecentGifs[^1];
+                RecentGifs.RemoveAt(RecentGifs.Count - 1);
+                DeleteQuietly(oldest.Path);
+            }
+            SaveRecentGifs();
+
+            SidebarGifPath = copy;
+            IsSidebarGifHidden = false;
             App.Database.SaveSetting("SidebarGif", name);
-            DeleteQuietly(previous);
         }
         catch (Exception ex)
         {
@@ -265,13 +400,12 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Takes the GIF out of the sidebar. It stays among the recent ones, to be picked again.</summary>
     [RelayCommand]
     private void RemoveGif()
     {
-        var previous = SidebarGifPath;
         SidebarGifPath = null;
         App.Database.SaveSetting("SidebarGif", string.Empty);
-        DeleteQuietly(previous);
     }
 
     private static void DeleteQuietly(string? path)
@@ -476,6 +610,50 @@ public partial class MainViewModel : ObservableObject
             App.Encryption.LockVault();
             _vaultVm?.OnLockedExternally();
         }
+        return true;
+    }
+
+    // ── Reader windows when the main window closes ──
+
+    public const string ReadersAsk = "Ask";
+    public const string ReadersKeep = "Keep";
+    public const string ReadersClose = "Close";
+
+    /// <summary>What closing the main window does to reader windows still open: ask, keep them open, or close them too.</summary>
+    [ObservableProperty] private string _readersOnClose = ReadersAsk;
+
+    partial void OnReadersOnCloseChanged(string value) => App.Database.SaveSetting("ReadersOnClose", value);
+
+    [RelayCommand]
+    private void SetReadersOnClose(string? choice)
+        => ReadersOnClose = choice is ReadersKeep or ReadersClose ? choice : ReadersAsk;
+
+    public static string ReadersOnCloseLabel(string choice) => choice switch
+    {
+        ReadersKeep => "Keep them open",
+        ReadersClose => "Close them too",
+        _ => "Ask each time"
+    };
+
+    /// <summary>
+    /// Puts the main window's page away before the window hides, leaving the
+    /// reader windows open: a note asks about unsaved changes, a task page
+    /// saves, dialogs over the page close, and the last board takes the page.
+    /// False when the user chose to stay.
+    /// </summary>
+    public bool SettleForHiding()
+    {
+        QuickAccess.Close();
+        NavigateToWorkspace(Workspaces.FirstOrDefault(w => w.Id == LastWorkspaceId) ?? Workspaces.FirstOrDefault());
+        if (CurrentPage != AppPage.Board) return false;
+
+        Gallery = null;
+        CloseExportCommand.Execute(null);
+        CloseAiImportCommand.Execute(null);
+        CloseLabelSuggestCommand.Execute(null);
+        MakeTasks = null;
+        AddTask = null;
+        IsAddingWorkspace = false;
         return true;
     }
 
@@ -799,10 +977,19 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(LayoutId));
     }
 
+    /// <summary>Puts on <paramref name="theme"/>, the change sweeping across every window as a wave.</summary>
     private void ApplyTheme(AppTheme theme)
     {
         if (theme.Id == App.CurrentTheme.Id) return;
 
+        var windows = new List<Window>();
+        if (AppWindow != null) windows.Add(AppWindow);
+        windows.AddRange(NoteWindow.All);
+        Controls.ThemeSweep.Run(windows, () => SwapTheme(theme));
+    }
+
+    private void SwapTheme(AppTheme theme)
+    {
         App.SetTheme(theme);
         App.Database.SaveSetting(theme.IsDark ? "LastDarkTheme" : "LastLightTheme", theme.Id);
         IsDark = theme.IsDark;
@@ -1261,6 +1448,8 @@ public partial class MainViewModel : ObservableObject
             _dashboardVm = null;
             _uses = null;
             _opened = null;
+            SidebarGifPath = StoredGif();
+            LoadRecentGifs();
             Shortcuts.Reload();
             ReloadWorkspaces();
             NavigateToWorkspace(Workspaces.FirstOrDefault());

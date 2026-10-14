@@ -104,7 +104,7 @@
                            Foreground="{DynamicResource TextPrimaryBrush}" ToolTip="{Binding Path}"/>
                 <TextBlock DockPanel.Dock="Left" Text="— MikuDo Reader" Margin="6,0,0,0" FontSize="12" VerticalAlignment="Center"
                            Foreground="{DynamicResource TextFaintBrush}"/>
-                <Border DockPanel.Dock="Left" Margin="10,0,0,0" CornerRadius="99" Padding="9,2" VerticalAlignment="Center"
+                <Border DockPanel.Dock="Left" Margin="10,0,0,0" CornerRadius="6" Padding="9,2" VerticalAlignment="Center"
                         Background="{DynamicResource AccentSoftBrush}"
                         Visibility="{Binding IsDirty, Converter={StaticResource Vis}}">
                     <TextBlock Text="Unsaved" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentDarkBrush}"/>
@@ -112,6 +112,10 @@
 
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource ZoomChip}" Margin="0,0,8,0" Click="ZoomChip_Click"
+                            Visibility="{Binding IsNoteZoomed, Source={x:Static ui:Display.Current}, Converter={StaticResource Vis}}"/>
+                    <Button x:Name="WindowsButton" Style="{StaticResource WindowListButton}" Margin="0,0,6,0" Click="Windows_Click"
+                            ToolTip="{Binding [window.next], Source={x:Static svc:ShortcutText.InParens}, StringFormat='Switch to MikuDo or another reader window{0}'}"/>
                     <ToggleButton Style="{StaticResource PinToggle}" Margin="0,0,10,0" ToolTip="Keep this window above other windows"
                                   IsChecked="{Binding Topmost, RelativeSource={RelativeSource AncestorType=Window}}"
                                   Click="OnTop_Click"/>

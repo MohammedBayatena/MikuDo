@@ -114,12 +114,12 @@
                             <TextBlock Text="{Binding FileName}" FontSize="15" FontWeight="ExtraBold" TextTrimming="CharacterEllipsis"
                                        ToolTip="{Binding Path}"
                                        Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                            <Border Margin="8,0,0,0" CornerRadius="99" Padding="9,2" VerticalAlignment="Center"
+                            <Border Margin="8,0,0,0" CornerRadius="6" Padding="9,2" VerticalAlignment="Center"
                                     Background="{DynamicResource AccentSoftBrush}"
                                     Visibility="{Binding IsDirty, Converter={StaticResource Vis}}">
                                 <TextBlock Text="Unsaved" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentDarkBrush}"/>
                             </Border>
-                            <Border Margin="8,0,0,0" CornerRadius="99" Padding="10,3" VerticalAlignment="Center"
+                            <Border Margin="8,0,0,0" CornerRadius="6" Padding="10,3" VerticalAlignment="Center"
                                     Background="{DynamicResource LabelAmberSoftBrush}"
                                     Visibility="{Binding ChangedOnDisk, Converter={StaticResource Vis}}">
                                 <TextBlock FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource LabelAmberBrush}">
@@ -127,7 +127,7 @@
                                     <Hyperlink Command="{Binding ReloadCommand}" Foreground="{DynamicResource LabelAmberBrush}">Reload</Hyperlink>
                                 </TextBlock>
                             </Border>
-                            <Border Margin="8,0,0,0" CornerRadius="99" Padding="10,3" VerticalAlignment="Center"
+                            <Border Margin="8,0,0,0" CornerRadius="6" Padding="10,3" VerticalAlignment="Center"
                                     Background="{DynamicResource DangerSoftBrush}"
                                     Visibility="{Binding IsMissing, Converter={StaticResource Vis}}">
                                 <TextBlock Text="Moved or deleted" FontSize="11.5" FontWeight="SemiBold"
@@ -140,17 +140,22 @@
                     </StackPanel>
                 </DockPanel>
 
-                <!-- What just happened, for a few seconds -->
-                <Border Grid.Column="1" Margin="0,0,12,0" CornerRadius="99" Padding="10,4" VerticalAlignment="Center"
-                        Background="{DynamicResource LabelGreenSoftBrush}"
-                        Visibility="{Binding HasFlash, Converter={StaticResource Vis}}">
-                    <StackPanel Orientation="Horizontal">
-                        <ui:Icon Data="{StaticResource IconCheck}" Size="11" StrokeThickness="2.6" VerticalAlignment="Center"
-                                 Stroke="{DynamicResource LabelGreenBrush}"/>
-                        <TextBlock Text="{Binding Flash}" Margin="6,0,0,0" FontSize="11.5" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource LabelGreenBrush}"/>
-                    </StackPanel>
-                </Border>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- What just happened, for a few seconds -->
+                    <Border Margin="0,0,12,0" CornerRadius="7" Padding="10,4" VerticalAlignment="Center"
+                            Background="{DynamicResource LabelGreenSoftBrush}"
+                            Visibility="{Binding HasFlash, Converter={StaticResource Vis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconCheck}" Size="11" StrokeThickness="2.6" VerticalAlignment="Center"
+                                     Stroke="{DynamicResource LabelGreenBrush}"/>
+                            <TextBlock Text="{Binding Flash}" Margin="6,0,0,0" FontSize="11.5" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource LabelGreenBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- The text size, while it is not 100% -->
+                    <Button Style="{StaticResource ZoomChip}" Margin="0,0,12,0" Click="ZoomChip_Click"
+                            Visibility="{Binding IsNoteZoomed, Source={x:Static ui:Display.Current}, Converter={StaticResource Vis}}"/>
+                </StackPanel>
 
                 <Border Grid.Column="2" CornerRadius="9" Padding="3" VerticalAlignment="Center"
                         Background="{DynamicResource HoverBrush}">
@@ -304,7 +309,7 @@
                     <TextBlock Text="{Binding StatusLine}" FontSize="11" Foreground="{DynamicResource TextFaintBrush}"/>
                 </Border>
                 <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,0">
-                    <Grid>
+                    <Grid MaxWidth="{Binding EditorMaxWidth}">
                         <!-- Find's matches, under the editor's text -->
                         <ui:FindHighlights x:Name="EditorMarks"/>
                         <TextBox x:Name="MarkdownBox" Style="{StaticResource PlainTextArea}"

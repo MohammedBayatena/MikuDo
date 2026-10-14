@@ -64,6 +64,9 @@ public partial class MainViewModel
             C("theme.choose", () => Do(() => OpenSettingsAt(SettingsSections.Theme))),
             C("layout.switch", () => Do(() => SelectLayout(Controls.Layout.Current.IsFlat ? Controls.Layout.Islands : Controls.Layout.Flat)),
               () => $"Switch layout to {(Controls.Layout.Current.IsFlat ? "Islands" : "Flat")}"),
+            C("app.size", () => Do(() => OpenSettingsAt(SettingsSections.AppSize))),
+            C("app.bigger", () => StepAppSize(1)),
+            C("app.smaller", () => StepAppSize(-1)),
             C("nav.dashboard", () => Do(NavigateToDashboard)),
             C("nav.vault", () => Do(NavigateToVault)),
             C("nav.trash", () => Do(NavigateToTrash)),
@@ -74,6 +77,7 @@ public partial class MainViewModel
 
             C("board.newtask", () => Do(QuickNewTask)),
             C("board.rename", () => CurrentView is BoardView board && board.RenameFromKeyboard()),
+            C("board.movetop", () => CurrentView is BoardView board && board.MoveTopFromKeyboard()),
             C("board.kanban", () => Do(() => ShowBoardAs("Kanban"))),
             C("board.list", () => Do(() => ShowBoardAs("List"))),
             C("board.table", () => Do(() => ShowBoardAs("Table"))),
@@ -100,10 +104,16 @@ public partial class MainViewModel
             C("note.maketasks", () => OpenNotePage is { } note
                                       && Do(() => note.MakeTasksCommand.Execute(note.HasOpenItems ? "items" : "whole"))),
             C("note.clearrecent", () => Do(ClearRecentNotes)),
+            C("note.zoomin", () => OpenNotePage != null && Do(() => Controls.Display.Current.StepNoteZoom(1))),
+            C("note.zoomout", () => OpenNotePage != null && Do(() => Controls.Display.Current.StepNoteZoom(-1))),
+            C("note.zoomreset", () => OpenNotePage != null && Do(() => Controls.Display.Current.SetNoteZoom(1))),
+            C("note.width", () => Do(() => Controls.Display.Current.SetNoteCentered(!Controls.Display.Current.IsNoteCentered)),
+              () => Controls.Display.Current.IsNoteCentered ? "Show notes across the full width" : "Show notes in a centred column"),
 
             C("window.sidebar", () => Do(ToggleSidebar)),
             // A reader window closes itself on these keys; the main window has none to close.
             C("window.closereader", () => false),
+            C("window.next", () => AppWindow is { } shown && WindowSwitcher.Next(shown)),
             C("window.minimize", () => AppWindow is { } w && Do(() => w.WindowState = WindowState.Minimized)),
             C("window.maximize", () => AppWindow is { } w && Do(() =>
                 w.WindowState = w.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized)),
@@ -114,6 +124,10 @@ public partial class MainViewModel
 
         Shortcuts.Changed += () => { foreach (var command in commands) command.Refresh(); };
         Controls.Layout.Current.PropertyChanged += (_, _) => Command("layout.switch")?.Refresh();
+        Controls.Display.Current.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Controls.Display.IsNoteCentered)) Command("note.width")?.Refresh();
+        };
         PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ScreenshotAllScreens)) Command("capture.screens")?.Refresh();
@@ -169,6 +183,17 @@ public partial class MainViewModel
         if (ShownBoard() == null)
             NavigateToWorkspace(Workspaces.FirstOrDefault(w => w.Id == LastWorkspaceId) ?? Workspaces.FirstOrDefault());
         ShownBoard()?.SetViewModeCommand.Execute(mode);
+    }
+
+    /// <summary>The next app size up or down. False at either end, where there is no further to go.</summary>
+    private static bool StepAppSize(int step)
+    {
+        var sizes = Controls.Display.AppSizes;
+        var at = Array.IndexOf(sizes, Controls.Display.Current.AppScale);
+        var next = at + step;
+        if (at < 0 || next < 0 || next >= sizes.Length) return false;
+        Controls.Display.Current.SetAppScale(sizes[next]);
+        return true;
     }
 
     /// <summary>The sidebar's own way to add a workspace, opened up wherever the sidebar was folded.</summary>

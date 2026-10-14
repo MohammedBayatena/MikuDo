@@ -33,9 +33,90 @@ public partial class NoteView : UserControl, IFindHost
         {
             SelectionChip.IsOpen = false;
             _finder.Close();
+            Display.Current.PropertyChanged -= OnDisplayChanged;
         };
         DataContextChanged += OnDataContextChanged;
         PreviewKeyDown += OnPagePreviewKeyDown;
+        PreviewMouseWheel += OnPageMouseWheel;
+    }
+
+    // ── Text size ───────────────────────────────────────────────
+
+    /// <summary>The editor's type at 100%.</summary>
+    private const double EditorFontSize = 12.5;
+
+    private void OnDisplayChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(Display.NoteZoom) or nameof(Display.AppScale)) ApplyZoom();
+    }
+
+    /// <summary>
+    /// The note's text at its zoom: the editor's type, and the preview, which
+    /// is a browser and so is also told the app's size, since it does not
+    /// grow with the window around it.
+    /// </summary>
+    private void ApplyZoom()
+    {
+        var zoom = Display.Current.NoteZoom;
+        MarkdownBox.FontSize = EditorFontSize * zoom;
+        if (_webViewReady) PreviewWebView.ZoomFactor = zoom * Display.Current.AppScale;
+        Dispatcher.BeginInvoke(_finder.LayoutChanged, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void ZoomChip_Click(object sender, RoutedEventArgs e) => Display.Current.SetNoteZoom(1);
+
+    /// <summary>Ctrl and the wheel zoom the note, over the editor and the outline; the preview sends its own.</summary>
+    private void OnPageMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (Keyboard.Modifiers != ModifierKeys.Control || Vm == null) return;
+        Display.Current.StepNoteZoom(e.Delta > 0 ? 1 : -1);
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// The zoom keys: the ones set for them, and Ctrl with the number pad's + - 0
+    /// besides. True when <paramref name="e"/> was one, and the note zoomed.
+    /// </summary>
+    public static bool Zoom(KeyEventArgs e)
+    {
+        var chord = Models.KeyChord.From(e);
+        bool Pad(Key key) => chord == new Models.KeyChord(key, ModifierKeys.Control);
+
+        if (Services.Shortcuts.Is("note.zoomin", e) || Pad(Key.Add)
+            || chord == new Models.KeyChord(Key.OemPlus, ModifierKeys.Control | ModifierKeys.Shift))
+            Display.Current.StepNoteZoom(1);
+        else if (Services.Shortcuts.Is("note.zoomout", e) || Pad(Key.Subtract))
+            Display.Current.StepNoteZoom(-1);
+        else if (Services.Shortcuts.Is("note.zoomreset", e) || Pad(Key.NumPad0))
+            Display.Current.SetNoteZoom(1);
+        else return false;
+        return true;
+    }
+
+    /// <summary>The preview's own rows of its right-click menu: find, zoom, and where the page sits.</summary>
+    private object?[] PreviewMenuRows()
+    {
+        var display = Display.Current;
+        var zoomIn = Menus.Item("Zoom in", () => display.StepNoteZoom(1), Services.Shortcuts.GestureText("note.zoomin"));
+        zoomIn.IsEnabled = display.CanZoomNoteIn;
+        var zoomOut = Menus.Item("Zoom out", () => display.StepNoteZoom(-1), Services.Shortcuts.GestureText("note.zoomout"));
+        zoomOut.IsEnabled = display.CanZoomNoteOut;
+        var actual = Menus.Item(display.IsNoteZoomed ? $"Actual size (now {display.NoteZoomLabel})" : "Actual size",
+                                () => display.SetNoteZoom(1), Services.Shortcuts.GestureText("note.zoomreset"));
+        actual.IsEnabled = display.IsNoteZoomed;
+        return new object?[]
+        {
+            Menus.Item("Find in note…", () => OpenFind(), Services.Shortcuts.GestureText("find.open")),
+            Menus.Gap,
+            zoomIn,
+            zoomOut,
+            actual,
+            Menus.Gap,
+            Menus.Check("Full width", !display.IsNoteCentered,
+                        new CommunityToolkit.Mvvm.Input.RelayCommand(() => display.SetNoteCentered(false))),
+            Menus.Check("Centred column", display.IsNoteCentered,
+                        new CommunityToolkit.Mvvm.Input.RelayCommand(() => display.SetNoteCentered(true)))
+        };
     }
 
     // ── Find ────────────────────────────────────────────────────
@@ -56,9 +137,14 @@ public partial class NoteView : UserControl, IFindHost
         return true;
     }
 
-    /// <summary>Esc in the editor or the preview closes the find bar first.</summary>
+    /// <summary>The zoom keys, wherever the caret is on the page; Esc in the editor or the preview closes the find bar first.</summary>
     private void OnPagePreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (Vm != null && Zoom(e))
+        {
+            e.Handled = true;
+            return;
+        }
         if (e.Key != Key.Escape || Keyboard.Modifiers != ModifierKeys.None || !_finder.IsOpen || FindBarView.HasFocus) return;
         if (!MarkdownBox.IsKeyboardFocusWithin && !PreviewWebView.IsKeyboardFocusWithin) return;
         SelectionChip.IsOpen = false;
@@ -72,6 +158,9 @@ public partial class NoteView : UserControl, IFindHost
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        Display.Current.PropertyChanged -= OnDisplayChanged;
+        Display.Current.PropertyChanged += OnDisplayChanged;
+        ApplyZoom();
         if (_webViewReady)
         {
             RenderPreview();
@@ -83,8 +172,8 @@ public partial class NoteView : UserControl, IFindHost
             await PreviewWebView.EnsureCoreWebView2Async();
             var core = PreviewWebView.CoreWebView2;
             WebAssets.Map(core);
-            core.Settings.AreDefaultContextMenusEnabled = false;
             core.Settings.IsZoomControlEnabled = false;
+            PreviewMenu.Attach(PreviewWebView, PreviewMenuRows);
             core.Settings.AreDevToolsEnabled = false;
             core.NavigationStarting += OnNavigationStarting;
             core.NewWindowRequested += (_, args) =>
@@ -99,6 +188,7 @@ public partial class NoteView : UserControl, IFindHost
             _webViewReady = true;
             PreviewWebView.Visibility = Visibility.Visible;
             PreviewPlaceholder.Visibility = Visibility.Collapsed;
+            ApplyZoom();
             RenderPreview();
         }
         catch
@@ -217,13 +307,18 @@ public partial class NoteView : UserControl, IFindHost
         if (message.StartsWith("task:")) vm.AddTaskForItem(message[5..]);
         else if (message.StartsWith("scroll:") && int.TryParse(message.AsSpan(7), out var y)) _scrollY = y;
         else if (message == "save") vm.SaveCommand.Execute(null);
+        else if (message == "zoom:in") Display.Current.StepNoteZoom(1);
+        else if (message == "zoom:out") Display.Current.StepNoteZoom(-1);
+        else if (message == "zoom:reset") Display.Current.SetNoteZoom(1);
         else if (message == "paste" && TaskDetailViewModel.ClipboardHasImages()) { }
     }
 
     /// <summary>
     /// The page's behaviour: a + Task on each open checklist item, a mark on
     /// those already made into tasks, in-page links that scroll, the scroll
-    /// position kept across renders, and Ctrl+S passed back to the app.
+    /// position kept across renders, and Ctrl+S and the zoom keys and wheel
+    /// passed back to the app. A touchpad's pinch arrives as many small turns
+    /// of the wheel, so turns are added up until they make one notch's worth.
     /// </summary>
     private static string PageScript(HashSet<string> made, int scrollY) => """
         (function () {
@@ -285,8 +380,20 @@ public partial class NoteView : UserControl, IFindHost
             setTimeout(function () { pending = false; window.chrome.webview.postMessage('scroll:' + Math.round(window.scrollY)); }, 150);
           });
           document.addEventListener('keydown', function (e) {
-            if (e.ctrlKey && !e.altKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); window.chrome.webview.postMessage('save'); }
+            if (!e.ctrlKey || e.altKey) return;
+            var zoom = e.key === '+' || e.key === '=' ? 'in' : e.key === '-' || e.key === '_' ? 'out' : e.key === '0' ? 'reset' : null;
+            if (e.key === 's' || e.key === 'S') { e.preventDefault(); window.chrome.webview.postMessage('save'); }
+            else if (zoom) { e.preventDefault(); window.chrome.webview.postMessage('zoom:' + zoom); }
           });
+          var turned = 0;
+          window.addEventListener('wheel', function (e) {
+            if (!e.ctrlKey) return;
+            e.preventDefault();
+            turned += e.deltaY;
+            if (Math.abs(turned) < 50) return;
+            window.chrome.webview.postMessage(turned < 0 ? 'zoom:in' : 'zoom:out');
+            turned = 0;
+          }, { passive: false });
         })();
         """;
 

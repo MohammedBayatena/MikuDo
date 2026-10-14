@@ -370,6 +370,16 @@
                                 </StackPanel>
                             </Button>
                         </WrapPanel>
+
+                        <!-- When it was made and last changed, in the user's own time zone -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0" HorizontalAlignment="Left"
+                                    Background="Transparent" ToolTip="{Binding DatesTooltip}"
+                                    Visibility="{Binding HasDates, Converter={StaticResource Vis}}">
+                            <ui:Icon Data="{StaticResource IconClock}" Size="12" StrokeThickness="2" VerticalAlignment="Center"
+                                     Stroke="{DynamicResource TextFaintBrush}"/>
+                            <TextBlock Text="{Binding DatesLabel}" Margin="5,0,0,0" FontSize="11" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextSubtleBrush}"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

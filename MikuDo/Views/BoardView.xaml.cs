@@ -72,6 +72,18 @@ public partial class BoardView : UserControl, IFindHost
         return true;
     }
 
+    /// <summary>Move to top from its keys: the card under the pointer, or else the selection.</summary>
+    public bool MoveTopFromKeyboard()
+    {
+        if (!IsVisible || Board is not { } board) return false;
+        if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase) return false;
+
+        var card = CardAt(Mouse.DirectlyOver as DependencyObject) ?? board.FirstSelectedCard;
+        if (card == null) return false;
+        board.MoveToTopCommand.Execute(card);
+        return true;
+    }
+
     /// <summary>The card an element sits in, if any.</summary>
     private TaskCardViewModel? CardAt(DependencyObject? element)
     {
@@ -233,6 +245,7 @@ public partial class BoardView : UserControl, IFindHost
             Menus.Item("Rename", board.StartRenameCommand, card, Services.Shortcuts.GestureText("board.rename")),
             Menus.Item("Priority and labels…", () => board.OpenCardEditor(card)),
             Menus.Item("Duplicate", board.DuplicateTaskCommand, card),
+            card.IsAtTop ? null : Menus.Item("Move to top", board.MoveToTopCommand, card, Services.Shortcuts.GestureText("board.movetop")),
             Menus.Gap,
             Menus.Item(card.MoveToALabel, board.MoveCardToStatusCommand, new object[] { card, card.OtherColumnA }),
             Menus.Item(card.MoveToBLabel, board.MoveCardToStatusCommand, new object[] { card, card.OtherColumnB }),

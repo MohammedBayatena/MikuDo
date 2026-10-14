@@ -38,6 +38,33 @@
         </Style>
         <conv:ShowIfNeitherConverter x:Key="ShowIfNeither"/>
 
+        <!-- An app size to pick: "Aa" drawn a little larger at each step -->
+        <Style x:Key="SizeTile" TargetType="Button" BasedOn="{StaticResource LayoutTile}">
+            <Setter Property="Width" Value="96"/>
+        </Style>
+
+        <!-- A sidebar GIF picked lately: playing small, ringed while it is the one shown -->
+        <Style x:Key="GifTile" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ring" CornerRadius="10" Padding="2" BorderThickness="2" BorderBrush="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ring" Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                <Setter TargetName="ring" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- A downloadable model: AI Import and dictation share it -->
         <DataTemplate x:Key="ModelRow">
             <Border CornerRadius="{ui:ByLayout Islands=10, Flat=0}" Padding="{ui:ByLayout Islands='12,10', Flat='12,11'}"
@@ -161,40 +188,21 @@
         <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,18">
             <StackPanel>
                 <TextBlock Text="Settings" Style="{StaticResource PageTitle}"/>
-                <TextBlock Text="Capture, appearance, AI, dictation and backup preferences." Style="{StaticResource PageSubtitle}"/>
+                <TextBlock Text="Appearance, accessibility, notes, tasks, AI, the sidebar, your data and keyboard shortcuts." Style="{StaticResource PageSubtitle}"/>
             </StackPanel>
         </Border>
 
         <ScrollViewer x:Name="Scroller" Grid.Row="1" Style="{StaticResource PageScroller}"
                       VerticalScrollBarVisibility="Auto">
             <StackPanel VerticalAlignment="Top">
+                <!-- Appearance -->
                 <Border Style="{StaticResource SectionStrip}">
-                    <TextBlock Text="SETTINGS" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                    <TextBlock Text="APPEARANCE" Style="{StaticResource SectionLabel}" FontWeight="Bold"
                                Margin="{ui:ByLayout Islands='2,0,2,8', Flat=0}"/>
                 </Border>
 
                 <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
                     <StackPanel>
-
-                        <!-- Screenshot mode -->
-                        <Border x:Name="SectionScreenshot" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" MinWidth="200"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
-                                    <TextBlock Text="Screenshot Mode" FontSize="13" FontWeight="Bold"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="{Binding ScreenshotNote}"
-                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextSubtleBrush}"/>
-                                </StackPanel>
-                                <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="14,9"
-                                        Content="{Binding Main.ScreenshotModeLabel}" VerticalAlignment="Center"
-                                        Command="{Binding Main.ToggleScreenshotModeCommand}"/>
-                            </Grid>
-                        </Border>
 
                         <!-- Theme -->
                         <Border x:Name="SectionTheme" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
@@ -291,7 +299,7 @@
                         </Border>
 
                         <!-- Layout: Islands or Flat -->
-                        <Border x:Name="SectionLayout" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                        <Border x:Name="SectionLayout" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
                             <StackPanel>
                                 <TextBlock Text="Layout" FontSize="13" FontWeight="Bold"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -415,6 +423,193 @@
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Accessibility -->
+                <Border Style="{StaticResource SectionStrip}">
+                    <TextBlock Text="ACCESSIBILITY" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                               Margin="{ui:ByLayout Islands='2,20,2,8', Flat=0}"/>
+                </Border>
+
+                <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                    <StackPanel>
+
+                        <!-- App size: everything drawn larger, never smaller than normal -->
+                        <Border x:Name="SectionAppSize" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <StackPanel>
+                                <TextBlock Text="App size" FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSubtleBrush}"
+                                           Text="Draws the whole app larger: text, lists, buttons and menus alike, in every window. Normal is the size MikuDo starts at and the smallest; each step up makes everything easier to read."/>
+                                <WrapPanel Margin="0,12,0,0">
+                                    <Button Style="{StaticResource SizeTile}" Command="{Binding SetAppSizeCommand}" CommandParameter="100%"
+                                            Tag="{Binding Display.AppScaleLabel, Converter={StaticResource EqOnOff}, ConverterParameter=100%}">
+                                        <StackPanel>
+                                            <TextBlock Text="Aa" FontSize="15" FontWeight="Bold" Height="34" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Bottom" Padding="0,12,0,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Normal" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="100%" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource SizeTile}" Command="{Binding SetAppSizeCommand}" CommandParameter="110%"
+                                            Tag="{Binding Display.AppScaleLabel, Converter={StaticResource EqOnOff}, ConverterParameter=110%}">
+                                        <StackPanel>
+                                            <TextBlock Text="Aa" FontSize="17" FontWeight="Bold" Height="34" HorizontalAlignment="Center"
+                                                       Padding="0,9,0,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Larger" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="110%" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource SizeTile}" Command="{Binding SetAppSizeCommand}" CommandParameter="125%"
+                                            Tag="{Binding Display.AppScaleLabel, Converter={StaticResource EqOnOff}, ConverterParameter=125%}">
+                                        <StackPanel>
+                                            <TextBlock Text="Aa" FontSize="20" FontWeight="Bold" Height="34" HorizontalAlignment="Center"
+                                                       Padding="0,5,0,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Large" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="125%" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource SizeTile}" Command="{Binding SetAppSizeCommand}" CommandParameter="140%"
+                                            Tag="{Binding Display.AppScaleLabel, Converter={StaticResource EqOnOff}, ConverterParameter=140%}">
+                                        <StackPanel>
+                                            <TextBlock Text="Aa" FontSize="23" FontWeight="Bold" Height="34" HorizontalAlignment="Center"
+                                                       Padding="0,1,0,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Extra large" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="140%" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource SizeTile}" Command="{Binding SetAppSizeCommand}" CommandParameter="160%"
+                                            Tag="{Binding Display.AppScaleLabel, Converter={StaticResource EqOnOff}, ConverterParameter=160%}">
+                                        <StackPanel>
+                                            <TextBlock Text="Aa" FontSize="26" FontWeight="Bold" Height="34" HorizontalAlignment="Center"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Largest" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="160%" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Note text size: how large a note's text is drawn -->
+                        <Border x:Name="SectionNoteText" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Note text size" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding NoteZoomNote}" FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource OutlinedIconButton}" Width="30" Height="30" ToolTip="Smaller"
+                                            Command="{Binding ZoomNoteOutCommand}" IsEnabled="{Binding Display.CanZoomNoteOut}">
+                                        <ui:Icon Data="{StaticResource IconMinimize}" Size="12" StrokeThickness="2.4"
+                                                 Stroke="{DynamicResource TextMutedBrush}"/>
+                                    </Button>
+                                    <TextBlock Text="{Binding Display.NoteZoomLabel}" Width="52" TextAlignment="Center" FontSize="12.5"
+                                               FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <Button Style="{StaticResource OutlinedIconButton}" Width="30" Height="30" ToolTip="Larger"
+                                            Command="{Binding ZoomNoteInCommand}" IsEnabled="{Binding Display.CanZoomNoteIn}">
+                                        <ui:Icon Data="{StaticResource IconPlus}" Size="12" StrokeThickness="2.4"
+                                                 Stroke="{DynamicResource TextMutedBrush}"/>
+                                    </Button>
+                                    <Button Style="{StaticResource GhostButton}" Content="Reset" Margin="8,0,0,0" Padding="12,7"
+                                            Command="{Binding ResetNoteZoomCommand}" IsEnabled="{Binding Display.IsNoteZoomed}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Notes -->
+                <Border Style="{StaticResource SectionStrip}">
+                    <TextBlock Text="NOTES" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                               Margin="{ui:ByLayout Islands='2,20,2,8', Flat=0}"/>
+                </Border>
+
+                <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                    <StackPanel>
+
+                        <!-- Note width: where the page sits, on the Notes page and in reader windows -->
+                        <Border x:Name="SectionNotes" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Note width" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Where a note's page sits, on the Notes page and in reader windows: across the whole width, or in a centred column whose shorter lines are easier to read."
+                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Full width"
+                                            Command="{Binding SetNoteWidthCommand}" CommandParameter="Full"
+                                            Tag="{Binding Display.NoteWidthId, Converter={StaticResource EqOnOff}, ConverterParameter=Full}"/>
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Centred column" Margin="8,0,0,0"
+                                            Command="{Binding SetNoteWidthCommand}" CommandParameter="Centered"
+                                            Tag="{Binding Display.NoteWidthId, Converter={StaticResource EqOnOff}, ConverterParameter=Centered}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Reader windows: what closing the main window does with them -->
+                        <Border x:Name="SectionReaders" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Reader windows when MikuDo closes" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSubtleBrush}"
+                                               Text="Notes open in windows of their own can stay open for reading after the main window closes, or close with it. Kept open, MikuDo goes on running until the last of them closes."/>
+                                    <TextBlock Text="{Binding ReadersNote}" FontSize="11.5" Margin="0,4,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Ask"
+                                            Command="{Binding Main.SetReadersOnCloseCommand}" CommandParameter="Ask"
+                                            Tag="{Binding Main.ReadersOnClose, Converter={StaticResource EqOnOff}, ConverterParameter=Ask}"/>
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Keep open" Margin="8,0,0,0"
+                                            Command="{Binding Main.SetReadersOnCloseCommand}" CommandParameter="Keep"
+                                            Tag="{Binding Main.ReadersOnClose, Converter={StaticResource EqOnOff}, ConverterParameter=Keep}"/>
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Close them" Margin="8,0,0,0"
+                                            Command="{Binding Main.SetReadersOnCloseCommand}" CommandParameter="Close"
+                                            Tag="{Binding Main.ReadersOnClose, Converter={StaticResource EqOnOff}, ConverterParameter=Close}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tasks -->
+                <Border Style="{StaticResource SectionStrip}">
+                    <TextBlock Text="TASKS" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                               Margin="{ui:ByLayout Islands='2,20,2,8', Flat=0}"/>
+                </Border>
+
+                <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                    <StackPanel>
 
                         <!-- Auto save -->
                         <Border x:Name="SectionAutoSave" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
@@ -440,6 +635,37 @@
                                 </StackPanel>
                             </Grid>
                         </Border>
+
+                        <!-- Screenshot mode -->
+                        <Border x:Name="SectionScreenshot" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Screenshot Mode" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding ScreenshotNote}"
+                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Style="{StaticResource GhostButton}" Padding="14,9"
+                                        Content="{Binding Main.ScreenshotModeLabel}" VerticalAlignment="Center"
+                                        Command="{Binding Main.ToggleScreenshotModeCommand}"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- AI -->
+                <Border Style="{StaticResource SectionStrip}">
+                    <TextBlock Text="AI" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                               Margin="{ui:ByLayout Islands='2,20,2,8', Flat=0}"/>
+                </Border>
+
+                <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                    <StackPanel>
 
                         <!-- AI model -->
                         <Border x:Name="SectionAiModel" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
@@ -469,74 +695,8 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Tips -->
-                        <Border x:Name="SectionTips" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" MinWidth="200"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
-                                    <TextBlock Text="Tips" FontSize="13" FontWeight="Bold"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="A short tip about a feature, now and then, at the foot of the sidebar."
-                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextSubtleBrush}"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Off"
-                                            Command="{Binding Main.SetTipsCommand}" CommandParameter="Off"
-                                            Tag="{Binding Main.IsTipsOn, Converter={StaticResource BoolOnOff}, ConverterParameter=invert}"/>
-                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="On" Margin="8,0,0,0"
-                                            Command="{Binding Main.SetTipsCommand}" CommandParameter="On"
-                                            Tag="{Binding Main.IsTipsOn, Converter={StaticResource BoolOnOff}}"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Sidebar GIF -->
-                        <Border x:Name="SectionGif" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" MinWidth="200"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
-                                    <TextBlock Text="Sidebar GIF" FontSize="13" FontWeight="Bold"
-                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="Pick a GIF and it plays in a box under the tip. With none picked, the sidebar has no box. It only animates while MikuDo is in front of you, so it costs next to nothing."
-                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextSubtleBrush}"/>
-                                </StackPanel>
-                                <!-- None chosen: one button to pick it -->
-                                <Button Grid.Column="1" Style="{StaticResource GhostButton}" VerticalAlignment="Center"
-                                        Command="{Binding Main.ChooseGifCommand}"
-                                        Visibility="{Binding Main.HasSidebarGif, Converter={StaticResource Vis}, ConverterParameter=invert}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <ui:Icon Data="{StaticResource IconImage}" Size="13" StrokeThickness="2"
-                                                 VerticalAlignment="Center" Stroke="{DynamicResource TextMutedBrush}"/>
-                                        <TextBlock Text="Choose GIF…" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <!-- Chosen: a small preview, and ways to change or drop it -->
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
-                                            Visibility="{Binding Main.HasSidebarGif, Converter={StaticResource Vis}}">
-                                    <Border Width="64" Height="36" CornerRadius="7" BorderThickness="1"
-                                            BorderBrush="{DynamicResource BorderSoftBrush}" Background="{DynamicResource SurfaceMutedBrush}">
-                                        <Grid ui:RoundedClip.Radius="6">
-                                            <ui:GifPlayer FilePath="{Binding Main.SidebarGifPath}"/>
-                                        </Grid>
-                                    </Border>
-                                    <Button Style="{StaticResource GhostButton}" Content="Change…" Margin="10,0,0,0"
-                                            Command="{Binding Main.ChooseGifCommand}"/>
-                                    <Button Style="{StaticResource GhostButton}" Content="Remove" Margin="8,0,0,0"
-                                            Command="{Binding Main.RemoveGifCommand}"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
                         <!-- Dictation -->
-                        <Border x:Name="SectionDictation" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                        <Border x:Name="SectionDictation" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
                             <StackPanel>
                                 <TextBlock Text="Dictation" FontSize="13" FontWeight="Bold"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -574,6 +734,166 @@
                                 </Grid>
                             </StackPanel>
                         </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Sidebar -->
+                <Border Style="{StaticResource SectionStrip}">
+                    <TextBlock Text="SIDEBAR" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                               Margin="{ui:ByLayout Islands='2,20,2,8', Flat=0}"/>
+                </Border>
+
+                <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                    <StackPanel>
+
+                        <!-- Tips -->
+                        <Border x:Name="SectionTips" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Tips" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="A short tip about a feature, now and then, at the foot of the sidebar."
+                                               FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextSubtleBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Off"
+                                            Command="{Binding Main.SetTipsCommand}" CommandParameter="Off"
+                                            Tag="{Binding Main.IsTipsOn, Converter={StaticResource BoolOnOff}, ConverterParameter=invert}"/>
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="On" Margin="8,0,0,0"
+                                            Command="{Binding Main.SetTipsCommand}" CommandParameter="On"
+                                            Tag="{Binding Main.IsTipsOn, Converter={StaticResource BoolOnOff}}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Sidebar GIF -->
+                        <Border x:Name="SectionGif" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="200"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                        <TextBlock Text="Sidebar GIF" FontSize="13" FontWeight="Bold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Pick a GIF and it plays in a box under the tip. The last five picked stay below, to switch between. It only animates while MikuDo is in front of you, so it costs next to nothing."
+                                                   FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextSubtleBrush}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <!-- Shown or hidden in the sidebar, while one is picked -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,10,0"
+                                                    Visibility="{Binding Main.HasSidebarGif, Converter={StaticResource Vis}}">
+                                            <Button Style="{StaticResource ChoiceBoxButton}" ToolTip="Show the GIF in the sidebar"
+                                                    Command="{Binding Main.SetSidebarGifHiddenCommand}" CommandParameter="False"
+                                                    Tag="{Binding Main.IsSidebarGifHidden, Converter={StaticResource BoolOnOff}, ConverterParameter=invert}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <ui:Icon Data="{StaticResource IconEye}" Size="13" StrokeThickness="2" VerticalAlignment="Center"
+                                                             Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                    <TextBlock Text="Shown" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Style="{StaticResource ChoiceBoxButton}" Margin="8,0,0,0" ToolTip="Hide the GIF's box from the sidebar"
+                                                    Command="{Binding Main.SetSidebarGifHiddenCommand}" CommandParameter="True"
+                                                    Tag="{Binding Main.IsSidebarGifHidden, Converter={StaticResource BoolOnOff}}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <ui:Icon Data="{StaticResource IconEyeOff}" Size="13" StrokeThickness="2" VerticalAlignment="Center"
+                                                             Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                    <TextBlock Text="Hidden" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <Button Style="{StaticResource GhostButton}" Command="{Binding Main.ChooseGifCommand}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Icon Data="{StaticResource IconImage}" Size="13" StrokeThickness="2"
+                                                         VerticalAlignment="Center" Stroke="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Text="Choose GIF…" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- The ones picked lately: a click shows one, its × forgets it -->
+                                <ItemsControl ItemsSource="{Binding Main.RecentGifs}" Margin="-4,12,0,0" Focusable="False"
+                                              Visibility="{Binding Main.RecentGifs.Count, Converter={StaticResource Vis}}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid x:Name="tile" Margin="0,0,8,8">
+                                                <Button Style="{StaticResource GifTile}" ToolTip="Show this GIF in the sidebar"
+                                                        Command="{Binding DataContext.Main.UseRecentGifCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Border Width="96" Height="58" CornerRadius="7" BorderThickness="1"
+                                                            BorderBrush="{DynamicResource BorderSoftBrush}" Background="{DynamicResource SurfaceMutedBrush}">
+                                                        <Grid ui:RoundedClip.Radius="6">
+                                                            <ui:GifPlayer FilePath="{Binding Path}"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </Button>
+                                                <Button x:Name="forget" Style="{StaticResource IconButton}" Width="20" Height="20" Margin="0,7,7,0"
+                                                        HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed"
+                                                        Background="{DynamicResource SurfaceBrush}" ToolTip="Forget this GIF"
+                                                        Command="{Binding DataContext.Main.ForgetGifCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Border CornerRadius="6" Width="20" Height="20" Background="{DynamicResource SurfaceBrush}"
+                                                            BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="1">
+                                                        <ui:Icon Data="{StaticResource IconClose}" Size="9" StrokeThickness="2.6"
+                                                                 Stroke="{DynamicResource TextSecondaryBrush}"/>
+                                                    </Border>
+                                                </Button>
+                                            </Grid>
+                                            <DataTemplate.Triggers>
+                                                <Trigger SourceName="tile" Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="forget" Property="Visibility" Value="Visible"/>
+                                                </Trigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- How tall the box is: its full height at most, its width the sidebar's -->
+                                <Grid Margin="0,6,0,0" Visibility="{Binding Main.HasSidebarGif, Converter={StaticResource Vis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="200"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                        <TextBlock Text="Height" FontSize="12.5" FontWeight="Bold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="A shorter box leaves more room above it. Its width always follows the sidebar's."
+                                                   FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextSubtleBrush}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Slider Style="{StaticResource SoftSlider}" Width="200" VerticalAlignment="Center"
+                                                Minimum="0.3" Maximum="1" SmallChange="0.05" LargeChange="0.1"
+                                                TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                                Value="{Binding Main.SidebarGifHeight, Mode=TwoWay}"/>
+                                        <TextBlock Text="{Binding Main.SidebarGifHeightLabel}" Width="46" TextAlignment="Right" FontSize="12"
+                                                   FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Data -->
+                <Border Style="{StaticResource SectionStrip}">
+                    <TextBlock Text="DATA" Style="{StaticResource SectionLabel}" FontWeight="Bold"
+                               Margin="{ui:ByLayout Islands='2,20,2,8', Flat=0}"/>
+                </Border>
+
+                <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
+                    <StackPanel>
 
                         <!-- Backup -->
                         <Border x:Name="SectionBackup" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">

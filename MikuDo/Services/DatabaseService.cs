@@ -324,9 +324,30 @@ public class DatabaseService : IDisposable
 
     public void UpsertTodo(TodoItem todo)
     {
-        todo.UpdatedAt = DateTime.UtcNow;
+        Stamp(todo);
         _todos.Upsert(todo);
     }
+
+    /// <summary>
+    /// Dates a save. Every save moves <see cref="TodoItem.UpdatedAt"/>;
+    /// <see cref="TodoItem.EditedAt"/> moves only when the title, description or
+    /// labels differ from the stored record. A vault task's title and
+    /// description are compared as stored, encrypted, so its page encrypts them
+    /// again only when the words changed.
+    /// </summary>
+    private void Stamp(TodoItem todo)
+    {
+        var now = DateTime.UtcNow;
+        todo.UpdatedAt = now;
+
+        var stored = _todos.FindById(todo.Id)?.Normalize();
+        if (stored != null && !SameWords(stored, todo)) todo.EditedAt = now;
+    }
+
+    private static bool SameWords(TodoItem stored, TodoItem saving)
+        => stored.Title == saving.Title
+           && stored.Description == saving.Description
+           && stored.Tags.SequenceEqual(saving.Tags ?? new List<string>(), StringComparer.Ordinal);
 
     public void DeleteTodoPermanently(ObjectId id)
     {
@@ -375,7 +396,7 @@ public class DatabaseService : IDisposable
     public void UpsertVaultTodo(TodoItem todo)
     {
         todo.IsVault = true;
-        todo.UpdatedAt = DateTime.UtcNow;
+        Stamp(todo);
         _todos.Upsert(todo);
     }
 

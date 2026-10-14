@@ -76,6 +76,26 @@ public static class Menus
         if (menu.Items.Count > 0) menu.IsOpen = true;
     }
 
+    /// <summary>
+    /// Opens a menu of <paramref name="items"/> at <paramref name="at"/>, a point
+    /// in <paramref name="target"/>'s own coordinates. For a browser window inside
+    /// the page, where WPF does not follow the pointer. Null when there was nothing to show.
+    /// </summary>
+    public static ContextMenu? OpenAt(FrameworkElement target, Point at, params object?[] items)
+    {
+        var menu = new ContextMenu
+        {
+            PlacementTarget = target,
+            Placement = PlacementMode.RelativePoint,
+            HorizontalOffset = at.X,
+            VerticalOffset = at.Y
+        };
+        Fill(menu.Items, items);
+        if (menu.Items.Count == 0) return null;
+        menu.IsOpen = true;
+        return menu;
+    }
+
     /// <summary>Opens a menu of <paramref name="items"/> under <paramref name="target"/>, for a button with a caret.</summary>
     public static void OpenBelow(FrameworkElement target, params object?[] items)
     {

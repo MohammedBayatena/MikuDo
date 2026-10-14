@@ -72,6 +72,38 @@ public class ShareOfConverter : IMultiValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>
+/// A popup's offset at the app's size: the parameter, a distance at the normal
+/// size, times the size bound in. A popup grows with the app, so an offset that
+/// lines it up with its button has to grow too.
+/// </summary>
+public class ScaledOffsetConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var scale = value is double d ? d : 1;
+        var offset = double.TryParse(parameter?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var o) ? o : 0;
+        return scale * offset;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>Every value multiplied together, and by the parameter: a box nine tenths as tall as it is wide, times the share chosen.</summary>
+public class ProductConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        var product = double.TryParse(parameter?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var p) ? p : 1;
+        foreach (var value in values) product *= value is double d ? d : 0;
+        return Math.Max(0, product);
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 public class ScaleConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

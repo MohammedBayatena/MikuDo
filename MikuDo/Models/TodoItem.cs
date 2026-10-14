@@ -52,6 +52,14 @@ public class TodoItem
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// When the title, the description or the labels last changed, null until
+    /// they first do. <see cref="UpdatedAt"/> moves on every save, moves and
+    /// ticks included; this moves only for the words.
+    /// </summary>
+    public DateTime? EditedAt { get; set; }
+
     public DateTime? CompletedAt { get; set; }
     public DateTime? TrashedAt { get; set; }
 
@@ -84,6 +92,7 @@ public class TodoItem
         IsPlaced = IsPlaced,
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt,
+        EditedAt = EditedAt,
         CompletedAt = CompletedAt,
         TrashedAt = TrashedAt,
         StatusBeforeTrash = StatusBeforeTrash

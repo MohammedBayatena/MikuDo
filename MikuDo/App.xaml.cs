@@ -65,6 +65,7 @@ public partial class App : Application
             var theme = ThemeCatalog.Resolve(stored);
             SetTheme(theme, persist: stored != theme.Id);
             Controls.Layout.Current.IsFlat = Database.GetSetting("Layout") == Controls.Layout.Flat;
+            Controls.Display.Current.Load();
 
             var main = new MainViewModel();
             var mainWindow = new MainWindow { DataContext = main };

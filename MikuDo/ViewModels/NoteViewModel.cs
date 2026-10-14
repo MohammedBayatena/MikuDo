@@ -72,12 +72,21 @@ public partial class NoteViewModel : ObservableObject
     public string Path { get; }
     public string FileName => System.IO.Path.GetFileName(Path);
     public string Folder => System.IO.Path.GetDirectoryName(Path) ?? string.Empty;
+
+    /// <summary>The name of the folder the note is in, as the windows list shows it beside the note.</summary>
+    public string FolderName => System.IO.Path.GetFileName(Folder.TrimEnd(System.IO.Path.DirectorySeparatorChar)) is { Length: > 0 } name ? name : Folder;
     public MainViewModel Main => _main;
 
     public ObservableCollection<OutlineEntry> Outline { get; } = new();
 
     /// <summary>The host the preview serves the note's folder under, so relative images and links resolve.</summary>
     public const string NoteHost = "mikudo-note.example";
+
+    /// <summary>
+    /// The editor's widest, while it has the page to itself and notes sit in a
+    /// centred column; otherwise as wide as it is given.
+    /// </summary>
+    public double EditorMaxWidth => Controls.Display.Current.IsNoteCentered && EditorMode == "Edit" ? 860 : double.PositiveInfinity;
 
     public bool ShowEditor => EditorMode != "Preview";
     public bool ShowPreview => EditorMode != "Edit";
@@ -110,6 +119,15 @@ public partial class NoteViewModel : ObservableObject
         SavedLabel = "Opened " + DateTime.Now.ToString("t");
         Refresh();
         Watch();
+        Controls.Display.Current.PropertyChanged += OnDisplayChanged;
+    }
+
+    /// <summary>The page is laid out again when notes move between the whole width and a centred column.</summary>
+    private void OnDisplayChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(Controls.Display.IsNoteCentered)) return;
+        Refresh();
+        OnPropertyChanged(nameof(EditorMaxWidth));
     }
 
     private static string Normalized(string text) => NoteFiles.WithLineEndings(text, "\n");
@@ -128,6 +146,7 @@ public partial class NoteViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowOutline));
         OnPropertyChanged(nameof(ShowToolbar));
         OnPropertyChanged(nameof(ShowReaderBar));
+        OnPropertyChanged(nameof(EditorMaxWidth));
     }
 
     /// <summary>A reader window lays the page out across its width, under the note's folder.</summary>
@@ -151,7 +170,7 @@ public partial class NoteViewModel : ObservableObject
     private void Refresh()
     {
         RenderedHtml = App.Markdown.ToHtml(Markdown ?? string.Empty, reading: true, baseHref: $"https://{NoteHost}/",
-                                           kicker: IsReader ? Folder : null);
+                                           kicker: IsReader ? Folder : null, centered: Controls.Display.Current.IsNoteCentered);
 
         var headings = NoteFiles.Headings(Markdown ?? string.Empty).Where(h => h.Level <= 3).ToList();
         var entries = headings.Select((h, i) => new OutlineEntry(h.Text, h.Level, h.Line, i)).ToList();
@@ -319,6 +338,7 @@ public partial class NoteViewModel : ObservableObject
     /// <summary>Stops following the file once the note leaves the screen.</summary>
     public void Close()
     {
+        Controls.Display.Current.PropertyChanged -= OnDisplayChanged;
         _watcher?.Dispose();
         _watcher = null;
         _flashTimer?.Stop();

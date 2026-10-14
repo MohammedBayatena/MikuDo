@@ -1,7 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=System.Runtime"
-                    xmlns:ui="clr-namespace:MikuDo.Controls">
+                    xmlns:ui="clr-namespace:MikuDo.Controls"
+                    xmlns:views="clr-namespace:MikuDo.Views">
 
     <!-- Merged here, not alongside in App.xaml, so the templates below can reach
          the storyboards with StaticResource while this dictionary is parsed. -->
@@ -234,9 +235,9 @@
         </Style.Triggers>
     </Style>
 
-    <!-- A count on a Flat heading: a small pill on the page colour, in the heading's ink -->
+    <!-- A count on a Flat heading: a small rounded tag on the page colour, in the heading's ink -->
     <Style x:Key="CountPill" TargetType="Border">
-        <Setter Property="CornerRadius" Value="99"/>
+        <Setter Property="CornerRadius" Value="5"/>
         <Setter Property="Padding" Value="8,1"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
@@ -246,8 +247,11 @@
         A floating menu or panel. Its shadow is a SoftShadow under the card, not
         an Effect on it, so hovering a row or typing inside does not re-blur it.
     -->
+    <!-- What a popup shows: menus, pickers, the chips over an editor. A popup is a window
+         of its own and does not grow with the one it opens from, so it takes the app's size here. -->
     <Style x:Key="Popover" TargetType="ContentControl">
         <Setter Property="Focusable" Value="False"/>
+        <Setter Property="LayoutTransform" Value="{Binding AppTransform, Source={x:Static ui:Display.Current}}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ContentControl">
@@ -1095,6 +1099,144 @@
         </Setter>
     </Style>
 
+    <!-- A slider: a thin track, filled with the accent up to a round thumb. Clicking the track jumps there. -->
+    <Style x:Key="SliderFill" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Grid Background="Transparent">
+                        <Border Height="4" CornerRadius="2" Background="{DynamicResource AccentBrush}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SliderGap" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SliderThumb" TargetType="Thumb">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Ellipse x:Name="knob" Width="16" Height="16" StrokeThickness="2"
+                             Fill="{DynamicResource SurfaceBrush}" Stroke="{DynamicResource AccentBrush}"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="knob" Property="Fill" Value="{DynamicResource AccentSoftBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="knob" Property="Fill" Value="{DynamicResource AccentSoftAltBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SoftSlider" TargetType="Slider">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsMoveToPointEnabled" Value="True"/>
+        <Setter Property="Height" Value="22"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid>
+                        <Border Height="4" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource BorderBrush}"/>
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderFill}" Command="Slider.DecreaseLarge"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderGap}" Command="Slider.IncreaseLarge"/>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource SliderThumb}"/>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A note's text size while it is not 100%; a click puts it back -->
+    <Style x:Key="ZoomChip" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="ToolTip" Value="Text size of notes. Ctrl with the wheel, or Ctrl + and Ctrl −, changes it. Click for 100%."/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" CornerRadius="7" Padding="9,4" BorderThickness="1"
+                            Background="{DynamicResource AccentSoftBrush}" BorderBrush="{DynamicResource AccentBorderBrush}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{DynamicResource IconSearch}" Size="11" StrokeThickness="2.4" VerticalAlignment="Center"
+                                     Stroke="{DynamicResource AccentDarkBrush}"/>
+                            <TextBlock Text="{Binding NoteZoomLabel, Source={x:Static ui:Display.Current}}" Margin="5,0,0,0"
+                                       FontSize="11" FontWeight="Bold" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentDarkBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoftAltBrush}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBorderStrongBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The list of MikuDo's windows, in a title bar: how many readers are open, and a menu to switch -->
+    <Style x:Key="WindowListButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+        <Setter Property="Height" Value="26"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" CornerRadius="7" Padding="7,0" Background="Transparent">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{DynamicResource IconWindows}" Size="15" StrokeThickness="1.8" VerticalAlignment="Center"
+                                     Stroke="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding Count, Source={x:Static views:OpenReaders.Current}}" Margin="5,0,1,0"
+                                       FontSize="11.5" FontWeight="Bold" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                            <ui:Icon Data="{DynamicResource IconCaretDown}" Size="10" StrokeThickness="2.4" Margin="2,1,0,0"
+                                     VerticalAlignment="Center" Stroke="{DynamicResource TextFaintBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Window buttons living in the canvas margin around the app card -->
     <Style x:Key="WindowChromeButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
         <Setter Property="Width" Value="26"/>
@@ -1351,6 +1493,7 @@
     <!-- ══════════════ Misc ══════════════ -->
 
     <Style TargetType="ToolTip">
+        <Setter Property="LayoutTransform" Value="{Binding AppTransform, Source={x:Static ui:Display.Current}}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToolTip">
@@ -1490,7 +1633,7 @@
 
     <!-- Where a search matched: "in title", "line 18" -->
     <Style x:Key="WhereChip" TargetType="Border">
-        <Setter Property="CornerRadius" Value="99"/>
+        <Setter Property="CornerRadius" Value="5"/>
         <Setter Property="Padding" Value="7,1"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="VerticalAlignment" Value="Center"/>

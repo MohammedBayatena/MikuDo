@@ -110,6 +110,12 @@ public partial class SettingsViewModel : ObservableObject
     public string ThemeNote => "Every theme is checked for contrast: text reaches at least 4.5:1 against what it sits on, and 7:1 in Contrast. "
                                + $"{KeysOr("theme.toggle", "Toggle theme")} switches between the light and dark theme you used last.";
 
+    public string NoteZoomNote => $"Ctrl with the wheel, {KeysOr("note.zoomin", "Zoom in")} and {KeysOr("note.zoomout", "Zoom out")} change it "
+                                  + $"while reading; {KeysOr("note.zoomreset", "Note at actual size")} puts it back.";
+
+    public string ReadersNote => $"{KeysOr("window.next", "Next MikuDo window")} steps between the main window and the readers; "
+                                 + "the windows button in the title bar lists them all.";
+
     private static string KeysOr(string commandId, string name)
         => Services.Shortcuts.ChordFor(commandId) is { } chord ? string.Join("+", chord.Caps) : name;
 
@@ -117,7 +123,34 @@ public partial class SettingsViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(ScreenshotNote));
         OnPropertyChanged(nameof(ThemeNote));
+        OnPropertyChanged(nameof(NoteZoomNote));
+        OnPropertyChanged(nameof(ReadersNote));
     }
+
+    /// <summary>The app's size, a note's text size and where its page sits, which the page shows and changes.</summary>
+    public Controls.Display Display => Controls.Display.Current;
+
+    /// <summary>"125%": one of the app sizes Settings offers.</summary>
+    [RelayCommand]
+    private void SetAppSize(string? percent)
+    {
+        if (double.TryParse(percent?.TrimEnd('%'), System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var value))
+            Display.SetAppScale(value / 100);
+    }
+
+    /// <summary>"Full" or "Centered".</summary>
+    [RelayCommand]
+    private void SetNoteWidth(string? id) => Display.SetNoteCentered(id == Controls.Display.Centered);
+
+    [RelayCommand]
+    private void ZoomNoteIn() => Display.StepNoteZoom(1);
+
+    [RelayCommand]
+    private void ZoomNoteOut() => Display.StepNoteZoom(-1);
+
+    [RelayCommand]
+    private void ResetNoteZoom() => Display.SetNoteZoom(1);
 
     /// <summary>Asked of the page: scroll to a part of it, and to a row of the shortcuts waiting for keys, if one is.</summary>
     public event Action<string, ShortcutRow?>? SectionRequested;

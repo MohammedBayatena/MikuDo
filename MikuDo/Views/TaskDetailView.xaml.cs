@@ -106,6 +106,7 @@ public partial class TaskDetailView : UserControl, IFindHost
     {
         SubtaskChip.IsOpen = false;
         _finder.Close();
+        Controls.Display.Current.PropertyChanged -= OnDisplayChanged;
         if (!_webViewReady) return;
 
         try
@@ -122,9 +123,23 @@ public partial class TaskDetailView : UserControl, IFindHost
 
     private TaskDetailViewModel? Vm => DataContext as TaskDetailViewModel;
 
+    /// <summary>The preview is a browser, which does not grow with the window around it, so it is told the app's size.</summary>
+    private void FollowAppSize()
+    {
+        if (_webViewReady) PreviewWebView.ZoomFactor = Controls.Display.Current.AppScale;
+    }
+
+    private void OnDisplayChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Controls.Display.AppScale)) FollowAppSize();
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         MarkdownBox.Focus();
+        Controls.Display.Current.PropertyChanged -= OnDisplayChanged;
+        Controls.Display.Current.PropertyChanged += OnDisplayChanged;
+        FollowAppSize();
 
         // The view is reused for every task, so Loaded runs again each time it
         // comes back. The browser is already up and already wired.
@@ -138,8 +153,11 @@ public partial class TaskDetailView : UserControl, IFindHost
         {
             await PreviewWebView.EnsureCoreWebView2Async();
             Services.WebAssets.Map(PreviewWebView.CoreWebView2);
-            PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             PreviewWebView.CoreWebView2.Settings.IsZoomControlEnabled = false;
+            PreviewMenu.Attach(PreviewWebView, () => new object?[]
+            {
+                Controls.Menus.Item("Find in task…", () => OpenFind(), Services.Shortcuts.GestureText("find.open"))
+            });
             PreviewWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             PreviewWebView.NavigationStarting += (_, args) =>
             {
@@ -153,6 +171,7 @@ public partial class TaskDetailView : UserControl, IFindHost
             _webViewReady = true;
             PreviewWebView.Visibility = Visibility.Visible;
             PreviewPlaceholder.Visibility = Visibility.Collapsed;
+            FollowAppSize();
             RenderPreview();
         }
         catch
