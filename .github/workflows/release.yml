@@ -1,0 +1,103 @@
+# Publishes MikuDo as a GitHub release whenever main moves, normally by merging
+# dev into it, or when run by hand from the Actions tab.
+#
+# The version is the last release's tag, one minor step up: v1.4.0 -> v1.5.0.
+# "#patch" or "#major" in the commit message on main takes that step instead,
+# and a run by hand picks it. With no release yet, the first is v1.0.0.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version goes up
+        type: choice
+        options: [minor, patch, major]
+        default: minor
+
+# One release at a time, each finishing, so two never take the same number.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Publish and release
+    needs: check
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # every tag, to find the last release
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Next version
+        id: version
+        shell: bash
+        env:
+          BUMP: ${{ inputs.bump }}
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          last=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
+          bump="${BUMP:-minor}"
+          case "$MESSAGE" in
+            *"#major"*) bump=major ;;
+            *"#patch"*) bump=patch ;;
+          esac
+          if [ -z "$last" ]; then
+            next=1.0.0
+          else
+            IFS=. read -r major minor patch <<< "${last#v}"
+            case "$bump" in
+              major) next="$((major + 1)).0.0" ;;
+              minor) next="$major.$((minor + 1)).0" ;;
+              patch) next="$major.$minor.$((patch + 1))" ;;
+            esac
+          fi
+          echo "Last release: ${last:-none}. A $bump step makes v$next."
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+
+      # The same build the README describes, stamped with the version, which
+      # the About page reads back from the assembly.
+      - name: Publish
+        run: >
+          dotnet publish MikuDo/MikuDo.csproj -c Release -r win-x64
+          --self-contained true -p:PublishSingleFile=true
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish
+
+      # MikuDo.exe needs the native libraries published beside it (WPF's,
+      # WebView2's, and the AI and speech runtimes), so the release is the
+      # whole folder, zipped. Debug symbols and API docs stay out.
+      - name: Package
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          Remove-Item publish/*.pdb, publish/*.xml -ErrorAction SilentlyContinue
+          Compress-Archive -Path publish/* -DestinationPath "MikuDo-v$env:VERSION-win-x64.zip"
+
+      - name: Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" "MikuDo-v$VERSION-win-x64.zip" \
+            --target "$GITHUB_SHA" \
+            --title "MikuDo $VERSION" \
+            --generate-notes
