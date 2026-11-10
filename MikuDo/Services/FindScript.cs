@@ -19,7 +19,7 @@ public static class FindScript
     public const string Source = """
         (function () {
           var found = [], active = -1, more = false, all = null, current = null;
-          var SKIP = 'script,style,noscript,svg,button,textarea,input,select,.mermaid,.mikudo-diagram,.mikudo-audio,.mikudo-empty';
+          var SKIP = 'script,style,noscript,svg,button,textarea,input,select,.mermaid,.mikudo-diagram,.mikudo-audio,.mikudo-empty,.mikudo-tip';
           var BLOCK = 'p,li,h1,h2,h3,h4,h5,h6,td,th,pre,blockquote,dt,dd,figcaption,summary,details,div,section,article,main,table,tr,ul,ol';
           var BETWEEN = 'ul,ol,table,thead,tbody,tfoot,tr,body,main,section,blockquote,details,dl';
 

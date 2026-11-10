@@ -43,23 +43,22 @@ public class DatabaseService : IDisposable
     }
 
     /// <summary>
-    /// Pins every task that exists before placement was recorded. Nothing
-    /// stored says which of those the user dragged and which the app appended,
-    /// so all of them keep the position they already show rather than any of
-    /// them moving on their own. Runs once.
+    /// Releases every task from its place once, so each list sorts by
+    /// priority and then age. A placed card keeps its position in its list,
+    /// and tasks stored without positions carry no record of which ones the
+    /// user dragged, so none of them keeps one. Runs once.
     /// </summary>
     private void MigratePlacement()
     {
-        if (GetSetting("PlacementMigration") == "done") return;
+        if (GetSetting("PlacementPositions") == "done") return;
 
-        foreach (var todo in _todos.FindAll().ToList())
+        foreach (var todo in _todos.Find(x => x.IsPlaced).ToList())
         {
-            if (todo.IsPlaced) continue;
-            todo.IsPlaced = true;
+            todo.IsPlaced = false;
             _todos.Update(todo);
         }
 
-        SaveSetting("PlacementMigration", "done");
+        SaveSetting("PlacementPositions", "done");
     }
 
     /// <summary>
@@ -139,18 +138,24 @@ public class DatabaseService : IDisposable
     /// The same count for every workspace at once, keyed by workspace id with
     /// "" for the default one. One pass instead of a scan per sidebar row.
     /// </summary>
-    public Dictionary<string, int> GetWorkspaceOpenCounts()
+    /// <summary>
+    /// Each workspace's tasks by list, and when one last changed, keyed "" for
+    /// the default workspace: what a workspace's preview in the sidebar tells.
+    /// </summary>
+    public Dictionary<string, WorkspaceSummary> GetWorkspaceSummaries()
     {
-        var counts = new Dictionary<string, int>();
-
-        foreach (var todo in _todos.Find(x => !x.IsVault &&
-                                              (x.Status == TodoStatus.Active || x.Status == TodoStatus.Doing)))
+        var found = new Dictionary<string, WorkspaceSummary>();
+        foreach (var todo in _todos.Find(x => !x.IsVault && x.Status != TodoStatus.Trashed))
         {
             var key = todo.WorkspaceId ?? "";
-            counts[key] = counts.GetValueOrDefault(key) + 1;
+            var was = found.GetValueOrDefault(key) ?? new WorkspaceSummary(0, 0, 0, null);
+            found[key] = new WorkspaceSummary(
+                was.ToDo + (todo.Status == TodoStatus.Active ? 1 : 0),
+                was.Doing + (todo.Status == TodoStatus.Doing ? 1 : 0),
+                was.Done + (todo.Status == TodoStatus.Completed ? 1 : 0),
+                was.Changed is { } at && at > todo.UpdatedAt ? at : todo.UpdatedAt);
         }
-
-        return counts;
+        return found;
     }
 
     public int GetTrashedCount() => _todos.Count(x => x.Status == TodoStatus.Trashed);
@@ -452,4 +457,11 @@ public class DatabaseService : IDisposable
     }
 
     public void Dispose() => _db?.Dispose();
+}
+
+/// <summary>A workspace's tasks by list, and when one of them last changed.</summary>
+public sealed record WorkspaceSummary(int ToDo, int Doing, int Done, DateTime? Changed)
+{
+    /// <summary>What its badge counts: the tasks still to finish.</summary>
+    public int Open => ToDo + Doing;
 }

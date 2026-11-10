@@ -64,15 +64,62 @@ public static class NoteFiles
         => text.Replace("\r\n", "\n").Replace('\r', '\n').Replace("\n", lineEnding);
 
     /// <summary>
-    /// Writes the note in its own encoding and line breaks. It is written beside
-    /// the file and swapped in, so a failed write never leaves half a note.
+    /// Writes the note over its file, in place, in its own encoding and line
+    /// breaks, as any editor saves: nothing is created or renamed beside it.
+    /// The file as it was is copied into MikuDo's own folder first and put back
+    /// if the write fails, so a failed save never leaves half a note.
     /// </summary>
     public static void Write(string path, string text, NoteText format)
     {
-        var temp = path + ".mikudo-saving";
-        File.WriteAllText(temp, WithLineEndings(text, format.LineEnding), format.Encoding);
-        if (File.Exists(path)) File.Replace(temp, path, null);
-        else File.Move(temp, path);
+        var bytes = format.Encoding.GetPreamble().Concat(format.Encoding.GetBytes(WithLineEndings(text, format.LineEnding))).ToArray();
+        if (!File.Exists(path))
+        {
+            File.WriteAllBytes(path, bytes);
+            return;
+        }
+
+        // The copy is made from the note's bytes, not its file, so it takes none
+        // of the note's attributes: a read-only note still leaves a copy that can go.
+        var was = File.ReadAllBytes(path);
+        var copy = Path.Combine(SavingFolder(), $"{Path.GetFileNameWithoutExtension(path)} {DateTime.Now:yyyyMMdd-HHmmss-fff}{Path.GetExtension(path)}");
+        File.WriteAllBytes(copy, was);
+        try
+        {
+            File.WriteAllBytes(path, bytes);
+        }
+        catch
+        {
+            PutBack(path, was, copy);
+            throw;
+        }
+        File.Delete(copy);
+    }
+
+    /// <summary>
+    /// Where a note as it was waits while it is saved: %LOCALAPPDATA%\Mikudo\saving. A copy
+    /// is only ever left there when a save failed and the note could not be put
+    /// back, and the log names it.
+    /// </summary>
+    public static string SavingFolder()
+    {
+        var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mikudo", "saving");
+        Directory.CreateDirectory(folder);
+        return folder;
+    }
+
+    /// <summary>Writes the note back as it <paramref name="was"/>, in place, then lets its copy go.</summary>
+    private static void PutBack(string path, byte[] was, string copy)
+    {
+        try
+        {
+            // A write that failed before it began, as on a read-only file, left the note untouched.
+            if (!File.ReadAllBytes(path).AsSpan().SequenceEqual(was)) File.WriteAllBytes(path, was);
+            File.Delete(copy);
+        }
+        catch (Exception ex)
+        {
+            LogService.Error($"{path} was not saved, and may not be as it was; the note as it was is kept at {copy}", ex);
+        }
     }
 
     // ── Taking a note apart ─────────────────────────────────────

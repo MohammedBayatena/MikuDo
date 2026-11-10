@@ -15,8 +15,13 @@
     <Color x:Key="P.Amber.497">#8a5410</Color>
     <Color x:Key="P.Amber.809">#f0b45c</Color>
     <Color x:Key="P.Blue.258">#15233d</Color>
+    <Color x:Key="P.Blue.300">#14323e</Color>
+    <Color x:Key="P.Blue.301">#1e2e48</Color>
+    <Color x:Key="P.Blue.440">#2b596c</Color>
+    <Color x:Key="P.Blue.441">#3a537c</Color>
     <Color x:Key="P.Blue.654">#5b8dee</Color>
     <Color x:Key="P.Blue.734">#7aa9f7</Color>
+    <Color x:Key="P.Blue.777">#6cc3e8</Color>
     <Color x:Key="P.Cyan.271">#122b30</Color>
     <Color x:Key="P.Cyan.767">#5fc4d6</Color>
     <Color x:Key="P.Green.201">#0b1a12</Color>
@@ -54,14 +59,26 @@
     <Color x:Key="P.Neutral.971">#f5f5f7</Color>
     <Color x:Key="P.Neutral.987">#fbfaff</Color>
     <Color x:Key="P.Neutral.991">#fffbfb</Color>
+    <Color x:Key="P.Orange.439">#783f3f</Color>
     <Color x:Key="P.Orange.588">#d93a30</Color>
     <Color x:Key="P.Orange.711">#f87171</Color>
+    <Color x:Key="P.Orange.751">#f78a8a</Color>
     <Color x:Key="P.Pink.256">#301a2d</Color>
+    <Color x:Key="P.Pink.298">#431f36</Color>
+    <Color x:Key="P.Pink.440">#753c60</Color>
+    <Color x:Key="P.Pink.752">#f084c8</Color>
     <Color x:Key="P.Pink.784">#e79ade</Color>
     <Color x:Key="P.Red.246">#2e1a1f</Color>
     <Color x:Key="P.Red.266">#3a1a20</Color>
+    <Color x:Key="P.Red.299">#462122</Color>
     <Color x:Key="P.Red.328">#4a2a30</Color>
     <Color x:Key="P.Red.751">#f5899a</Color>
+    <Color x:Key="P.Teal.300">#0c3532</Color>
+    <Color x:Key="P.Teal.301">#083725</Color>
+    <Color x:Key="P.Teal.441">#196144</Color>
+    <Color x:Key="P.Teal.441.a">#1f5e5a</Color>
+    <Color x:Key="P.Teal.780">#4fd39c</Color>
+    <Color x:Key="P.Teal.789">#5cd0c8</Color>
     <Color x:Key="P.Teal.805">#5ddba0</Color>
     <Color x:Key="P.Violet.227">#1c1a28</Color>
     <Color x:Key="P.Violet.233">#1e1b2b</Color>
@@ -69,7 +86,11 @@
     <Color x:Key="P.Violet.253">#251b3d</Color>
     <Color x:Key="P.Violet.259">#251f38</Color>
     <Color x:Key="P.Violet.274">#2a2140</Color>
+    <Color x:Key="P.Violet.300">#30264c</Color>
+    <Color x:Key="P.Violet.301">#312846</Color>
     <Color x:Key="P.Violet.385">#463a6b</Color>
+    <Color x:Key="P.Violet.441">#574979</Color>
+    <Color x:Key="P.Violet.441.a">#564782</Color>
     <Color x:Key="P.Violet.448">#584a80</Color>
     <Color x:Key="P.Violet.458">#5b4a8c</Color>
     <Color x:Key="P.Violet.491">#6d28d9</Color>
@@ -87,9 +108,12 @@
     <Color x:Key="P.Yellow.189">#1a1206</Color>
     <Color x:Key="P.Yellow.275">#33250f</Color>
     <Color x:Key="P.Yellow.283">#33280f</Color>
+    <Color x:Key="P.Yellow.299">#3e2903</Color>
     <Color x:Key="P.Yellow.409">#5e4520</Color>
     <Color x:Key="P.Yellow.414">#5a4a12</Color>
+    <Color x:Key="P.Yellow.438">#6c4b0f</Color>
     <Color x:Key="P.Yellow.756">#e0a33e</Color>
+    <Color x:Key="P.Yellow.814">#f5b54a</Color>
 
     <!-- ═══ Tier 2: semantic tokens, what a colour is for ═══ -->
     <SolidColorBrush x:Key="CanvasBrush" po:Freeze="True" Color="{StaticResource P.Neutral.170}"/>
@@ -187,6 +211,33 @@
     <SolidColorBrush x:Key="LabelCyanSoftBrush" po:Freeze="True" Color="{StaticResource P.Cyan.271}"/>
     <SolidColorBrush x:Key="LabelMagentaSoftBrush" po:Freeze="True" Color="{StaticResource P.Pink.256}"/>
     <SolidColorBrush x:Key="LabelOliveSoftBrush" po:Freeze="True" Color="{StaticResource P.Green.270}"/>
+    <SolidColorBrush x:Key="TileDashboardBrush" po:Freeze="True" Color="{StaticResource P.Teal.780}"/>
+    <SolidColorBrush x:Key="TileVaultBrush" po:Freeze="True" Color="{StaticResource P.Pink.752}"/>
+    <SolidColorBrush x:Key="TileTrashBrush" po:Freeze="True" Color="{StaticResource P.Orange.751}"/>
+    <SolidColorBrush x:Key="TileWorkspaceABrush" po:Freeze="True" Color="{StaticResource P.Violet.752}"/>
+    <SolidColorBrush x:Key="TileWorkspaceBBrush" po:Freeze="True" Color="{StaticResource P.Blue.777}"/>
+    <SolidColorBrush x:Key="TileTaskBrush" po:Freeze="True" Color="{StaticResource P.Blue.734}"/>
+    <SolidColorBrush x:Key="TileNoteBrush" po:Freeze="True" Color="{StaticResource P.Teal.789}"/>
+    <SolidColorBrush x:Key="TileFolderBrush" po:Freeze="True" Color="{StaticResource P.Violet.709}"/>
+    <SolidColorBrush x:Key="TilePinBrush" po:Freeze="True" Color="{StaticResource P.Yellow.814}"/>
+    <SolidColorBrush x:Key="TileDashboardWashBrush" po:Freeze="True" Color="{StaticResource P.Teal.301}"/>
+    <SolidColorBrush x:Key="TileVaultWashBrush" po:Freeze="True" Color="{StaticResource P.Pink.298}"/>
+    <SolidColorBrush x:Key="TileTrashWashBrush" po:Freeze="True" Color="{StaticResource P.Red.299}"/>
+    <SolidColorBrush x:Key="TileWorkspaceAWashBrush" po:Freeze="True" Color="{StaticResource P.Violet.301}"/>
+    <SolidColorBrush x:Key="TileWorkspaceBWashBrush" po:Freeze="True" Color="{StaticResource P.Blue.300}"/>
+    <SolidColorBrush x:Key="TileTaskWashBrush" po:Freeze="True" Color="{StaticResource P.Blue.301}"/>
+    <SolidColorBrush x:Key="TileNoteWashBrush" po:Freeze="True" Color="{StaticResource P.Teal.300}"/>
+    <SolidColorBrush x:Key="TileFolderWashBrush" po:Freeze="True" Color="{StaticResource P.Violet.300}"/>
+    <SolidColorBrush x:Key="TilePinWashBrush" po:Freeze="True" Color="{StaticResource P.Yellow.299}"/>
+    <SolidColorBrush x:Key="TileDashboardEdgeBrush" po:Freeze="True" Color="{StaticResource P.Teal.441}"/>
+    <SolidColorBrush x:Key="TileVaultEdgeBrush" po:Freeze="True" Color="{StaticResource P.Pink.440}"/>
+    <SolidColorBrush x:Key="TileTrashEdgeBrush" po:Freeze="True" Color="{StaticResource P.Orange.439}"/>
+    <SolidColorBrush x:Key="TileWorkspaceAEdgeBrush" po:Freeze="True" Color="{StaticResource P.Violet.441}"/>
+    <SolidColorBrush x:Key="TileWorkspaceBEdgeBrush" po:Freeze="True" Color="{StaticResource P.Blue.440}"/>
+    <SolidColorBrush x:Key="TileTaskEdgeBrush" po:Freeze="True" Color="{StaticResource P.Blue.441}"/>
+    <SolidColorBrush x:Key="TileNoteEdgeBrush" po:Freeze="True" Color="{StaticResource P.Teal.441.a}"/>
+    <SolidColorBrush x:Key="TileFolderEdgeBrush" po:Freeze="True" Color="{StaticResource P.Violet.441.a}"/>
+    <SolidColorBrush x:Key="TilePinEdgeBrush" po:Freeze="True" Color="{StaticResource P.Yellow.438}"/>
     <LinearGradientBrush x:Key="AccentGradientBrush" po:Freeze="True" StartPoint="0.15,0" EndPoint="0.85,1">
         <GradientStop Color="{StaticResource P.Violet.561}" Offset="0"/>
         <GradientStop Color="{StaticResource P.Violet.491}" Offset="1"/>

@@ -186,10 +186,25 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="20,18">
-            <StackPanel>
-                <TextBlock Text="Settings" Style="{StaticResource PageTitle}"/>
-                <TextBlock Text="Appearance, accessibility, notes, tasks, AI, the sidebar, your data and keyboard shortcuts." Style="{StaticResource PageSubtitle}"/>
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Settings" Style="{StaticResource PageTitle}"/>
+                    <TextBlock Text="Appearance, accessibility, notes, tasks, AI, the sidebar, your data and keyboard shortcuts." Style="{StaticResource PageSubtitle}"/>
+                </StackPanel>
+                <!-- About MikuDo: the version, and what it is made with -->
+                <Button Grid.Column="1" Style="{StaticResource GhostButton}" Margin="12,0,0,0" VerticalAlignment="Top"
+                        Padding="10,7" Command="{Binding Main.NavigateToAboutCommand}" ToolTip="The version, and what MikuDo is made with">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:Icon Data="{StaticResource IconAbout}" Size="15" VerticalAlignment="Center"
+                                 Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <TextBlock Text="About" Margin="7,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
         </Border>
 
         <ScrollViewer x:Name="Scroller" Grid.Row="1" Style="{StaticResource PageScroller}"
@@ -435,15 +450,26 @@
                 <Border Style="{StaticResource Card}" ClipToBounds="True" BorderThickness="{ui:ByLayout Islands=1, Flat='0,0,0,1'}">
                     <StackPanel>
 
-                        <!-- App size: everything drawn larger, never smaller than normal -->
+                        <!-- App size: everything drawn a step smaller than normal, or larger -->
                         <Border x:Name="SectionAppSize" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
                             <StackPanel>
                                 <TextBlock Text="App size" FontSize="13" FontWeight="Bold"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBlock FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextSubtleBrush}"
-                                           Text="Draws the whole app larger: text, lists, buttons and menus alike, in every window. Normal is the size MikuDo starts at and the smallest; each step up makes everything easier to read."/>
+                                           Text="Draws the whole app smaller or larger: text, lists, buttons and menus alike, in every window. Normal is the size MikuDo starts at. Smaller fits more on screen; each step up makes everything easier to read."/>
                                 <WrapPanel Margin="0,12,0,0">
+                                    <Button Style="{StaticResource SizeTile}" Command="{Binding SetAppSizeCommand}" CommandParameter="90%"
+                                            Tag="{Binding Display.AppScaleLabel, Converter={StaticResource EqOnOff}, ConverterParameter=90%}">
+                                        <StackPanel>
+                                            <TextBlock Text="Aa" FontSize="13" FontWeight="Bold" Height="34" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Bottom" Padding="0,15,0,0" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Smaller" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="90%" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                       Foreground="{DynamicResource TextSubtleBrush}"/>
+                                        </StackPanel>
+                                    </Button>
                                     <Button Style="{StaticResource SizeTile}" Command="{Binding SetAppSizeCommand}" CommandParameter="100%"
                                             Tag="{Binding Display.AppScaleLabel, Converter={StaticResource EqOnOff}, ConverterParameter=100%}">
                                         <StackPanel>
@@ -572,7 +598,7 @@
                         </Border>
 
                         <!-- Reader windows: what closing the main window does with them -->
-                        <Border x:Name="SectionReaders" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
+                        <Border x:Name="SectionReaders" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" MinWidth="200"/>
@@ -596,6 +622,30 @@
                                     <Button Style="{StaticResource ChoiceBoxButton}" Content="Close them" Margin="8,0,0,0"
                                             Command="{Binding Main.SetReadersOnCloseCommand}" CommandParameter="Close"
                                             Tag="{Binding Main.ReadersOnClose, Converter={StaticResource EqOnOff}, ConverterParameter=Close}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Open with: MikuDo listed in Explorer for Markdown files, only when asked -->
+                        <Border x:Name="SectionOpenWith" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Open with" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSubtleBrush}"
+                                               Text="Lists MikuDo under Open with when you right-click a Markdown file in Explorer, for you only. It never becomes their default app. If you move MikuDo to another folder, turn this on again."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Off"
+                                            Command="{Binding SetOpenWithCommand}" CommandParameter="Off"
+                                            Tag="{Binding IsOpenWithOn, Converter={StaticResource BoolOnOff}, ConverterParameter=invert}"/>
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="On" Margin="8,0,0,0"
+                                            Command="{Binding SetOpenWithCommand}" CommandParameter="On"
+                                            Tag="{Binding IsOpenWithOn, Converter={StaticResource BoolOnOff}}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>

@@ -246,6 +246,7 @@ public partial class BoardView : UserControl, IFindHost
             Menus.Item("Priority and labels…", () => board.OpenCardEditor(card)),
             Menus.Item("Duplicate", board.DuplicateTaskCommand, card),
             card.IsAtTop ? null : Menus.Item("Move to top", board.MoveToTopCommand, card, Services.Shortcuts.GestureText("board.movetop")),
+            Menus.Item(card.PinLabel, board.TogglePinnedCommand, card),
             Menus.Gap,
             Menus.Item(card.MoveToALabel, board.MoveCardToStatusCommand, new object[] { card, card.OtherColumnA }),
             Menus.Item(card.MoveToBLabel, board.MoveCardToStatusCommand, new object[] { card, card.OtherColumnB }),

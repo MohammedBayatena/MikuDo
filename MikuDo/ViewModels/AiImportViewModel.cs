@@ -22,7 +22,10 @@ public partial class ProposedTask : ObservableObject
     public string SubtaskLabel => Source.Subtasks.Count == 0
         ? string.Empty
         : $"{Source.Subtasks.Count} subtask{(Source.Subtasks.Count == 1 ? "" : "s")}";
-    public string PriorityLabel => Source.Priority == TodoPriority.None ? string.Empty : Source.Priority.ToString();
+    /// <summary>The priority the task is made with: what the note says, or Low when it says nothing.</summary>
+    public TodoPriority Priority => Source.Priority == TodoPriority.None ? TodoPriority.Low : Source.Priority;
+
+    public string PriorityLabel => Priority.ToString();
 
     public ProposedTask(ExtractedTask source)
     {
@@ -262,7 +265,7 @@ public partial class AiImportViewModel : ObservableObject
                 Title = title,
                 Description = proposal.Description.Trim(),
                 Status = source.Status,
-                Priority = source.Priority,
+                Priority = proposal.Priority,
                 WorkspaceId = _workspaceId,
                 Tags = source.Labels,
                 SubtaskIds = childIds,

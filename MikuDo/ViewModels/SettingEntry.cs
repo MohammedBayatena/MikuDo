@@ -10,6 +10,7 @@ public static class SettingsSections
     public const string Notes = "SectionNotes";
     public const string NoteText = "SectionNoteText";
     public const string Readers = "SectionReaders";
+    public const string OpenWith = "SectionOpenWith";
     public const string AutoSave = "SectionAutoSave";
     public const string AiModel = "SectionAiModel";
     public const string Tips = "SectionTips";
@@ -37,7 +38,7 @@ public sealed record SettingEntry(string Name, string Area, string Description, 
             "Islands sets each list and panel on the page as a card of its own. Flat runs them edge to edge, divided by borders, with each list under a heading in its colour. Works with every theme.",
             SettingsSections.Layout, _ => Controls.Layout.Current.IsFlat ? "Flat" : "Islands"),
         new("App size", "Accessibility",
-            "Draws the whole app larger: text, lists, buttons and menus. The normal size is the smallest; each step up makes everything easier to read.",
+            "Draws the whole app smaller or larger: text, lists, buttons and menus. Smaller fits more on screen; each step up makes everything easier to read.",
             SettingsSections.AppSize, _ => Controls.Display.Current.AppScaleLabel),
         new("Note width", "Notes",
             "Where a note's page sits, on the Notes page and in reader windows: across the whole width, or in a centred column that is easier to read.",
@@ -48,6 +49,9 @@ public sealed record SettingEntry(string Name, string Area, string Description, 
         new("Reader windows when MikuDo closes", "Notes",
             "Notes open in windows of their own can stay open after the main window closes, or close with it.",
             SettingsSections.Readers, main => MainViewModel.ReadersOnCloseLabel(main.ReadersOnClose)),
+        new("Open with", "Notes",
+            "Lists MikuDo under Open with when you right-click a Markdown file in Explorer, for you only. It never becomes their default app.",
+            SettingsSections.OpenWith, _ => OnOff(Services.OpenWith.IsRegistered())),
         new("Screenshot Mode", "Tasks",
             "Choose whether Take a screenshot captures the primary monitor or every screen",
             SettingsSections.Screenshot, main => main.ScreenshotAllScreens ? "All screens" : "Primary monitor"),

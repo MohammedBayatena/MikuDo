@@ -35,7 +35,7 @@
 
 <p align="center"><img src="docs/screenshots/boards.png" alt="One board as a Table, a List and a Kanban board"></p>
 
-**One board, three ways: Kanban, List and Table.** Drag cards between lists or send one to the top of its list, drop one by another to make it a subtask, group subtasks under their parent, and <kbd>Ctrl</kbd>+click to change several cards at once. Each card says when it was made and when its words were last edited, in your own time zone.
+**One board, three ways: Kanban, List and Table.** Drag cards between lists or send one to the top of its list, and it keeps that place while everything else sorts by priority, then newest first; pin one to **Shortcuts** in the sidebar, beside your pinned notes and whatever you opened last; drop one card on another to make it a subtask, group subtasks under their parent, and <kbd>Ctrl</kbd>+click to change several cards at once. Each card says when it was made and when its words were last edited, in your own time zone.
 
 <table>
   <tr>
@@ -99,7 +99,7 @@ MikuDo is a Markdown notes reader too. Point it at your folders and it keeps up 
   <tr>
     <td width="50%" valign="top">
       <b>Read and write</b><br>
-      <sub>An outline beside the page; Edit, Split or Preview with live Mermaid diagrams; <kbd>Ctrl</kbd>+wheel zoom, across the page or in a centred column. Reader windows stay on top if you like, outlive the main window, and switch with <kbd>Ctrl</kbd>+<kbd>`</kbd>; <code>.md</code> files open in MikuDo straight from Explorer.</sub>
+      <sub>An outline beside the page; Edit, Split or Preview with live Mermaid diagrams; <kbd>Ctrl</kbd>+wheel zoom, across the page or in a centred column. Reader windows stay on top if you like, outlive the main window, and switch with <kbd>Ctrl</kbd>+<kbd>`</kbd>; pointing at a link shows where it goes; turn on Open with in Settings and <code>.md</code> files open in MikuDo straight from Explorer.</sub>
     </td>
     <td width="50%" valign="top">
       <b>Find · <kbd>Ctrl</kbd>+<kbd>F</kbd></b><br>
@@ -149,7 +149,7 @@ Five themes, **Sun**, **Moon**, **Miku Special**, **Pastel Pink** and **Contrast
 
 <table>
   <tr>
-    <td width="50%" valign="top"><b>Islands or Flat</b><br><sub>Cards on a canvas, or edge to edge.</sub></td>
+    <td width="50%" valign="top"><b>Islands or Flat</b><br><sub>Cards on a canvas, or edge to edge with square corners, the window's included.</sub></td>
     <td width="50%" valign="top"><b>Your keys</b><br><sub>Give any command its own shortcut, or find one by pressing its keys. A key already in use says which command has it.</sub></td>
   </tr>
   <tr>
@@ -158,7 +158,7 @@ Five themes, **Sun**, **Moon**, **Miku Special**, **Pastel Pink** and **Contrast
   </tr>
 </table>
 
-Also yours to set: **App size**, which draws everything up to 160% for easier reading; a sidebar GIF, picked from your last five, hidden or made shorter; Auto Save; the AI and speech models; and screenshots of one screen or all of them. Panel widths, the sidebar and how each board is sorted and grouped are remembered as you leave them.
+Also yours to set: **App size**, which draws everything at 90% to fit more in, or up to 160% for easier reading; a sidebar GIF, picked from your last five, hidden or made shorter; Auto Save; the AI and speech models; and screenshots of one screen or all of them. Panel widths, the sidebar and how each board is sorted and grouped are remembered as you leave them. Dashboard, Vault, Trash, your workspaces, Shortcuts and Notes can each fold into a row of named squares to save room, each square coloured for what it stands for in every theme: point at a square for a short preview, or at a Recent square for the last five things you opened, with Clear to empty that list. A note can be pinned to Shortcuts from its right-click menu, as a task can. A small arrow that appears on the sidebar's edge as you point near it hides the sidebar.
 
 ---
 
@@ -178,6 +178,8 @@ A single `MikuDo.exe` that runs without .NET installed:
 dotnet publish MikuDo -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
+Or skip the build: download `MikuDo-vX.Y.Z-win-x64.zip` from [Releases](https://github.com/MohammedBayatena/MikuDo/releases), unzip it anywhere and run `MikuDo.exe`. Keep the files beside it; it needs them. A pre-release (`vX.Y.Z-dev.N`) has the newest work from `dev`.
+
 Your database, log and downloaded models live in `%LOCALAPPDATA%\Mikudo`; notes stay wherever you keep them.
 
 ```
@@ -188,6 +190,7 @@ MikuDo/                 the app (.NET 9, WPF, MVVM)
   Controls/ Themes/     custom-drawn controls, generated themes, icons
   Assets/               app icon, logo, fonts, bundled Mermaid
 tools/theme_studio.py   generates the five themes and checks their contrast
+.github/workflows/      checks on pull requests; releases from dev and main
 docs/brand/             the logo, the mark and the source artwork
 docs/screenshots/       the pictures in this README
 ```
@@ -207,6 +210,13 @@ Work goes on a branch of its own, never straight on `main`. A branch is named fo
 ```powershell
 git switch -c feature/F-L001
 ```
+
+Branches merge into `dev`, and `dev` into `main`:
+
+- **CI** checks every pull request, as its branch would be once merged. It builds the app, runs the solution's tests, and regenerates the themes with `tools/theme_studio.py` to check they still pass their contrast targets and match the XAML in the repo.
+- **Release** runs when `dev` or `main` moves. It publishes the app, tags the version and attaches the zipped app to a [release](https://github.com/MohammedBayatena/MikuDo/releases). `main` makes a release, one minor step up from the last (`v1.4.0` → `v1.5.0`); `dev` makes a pre-release of the version `main` releases next (`v1.5.0-dev.1`, `v1.5.0-dev.2`, …). Put `#patch` or `#major` in the merge commit's message to take that step instead, or run Release by hand from the Actions tab on `dev` or `main` and pick it. The first release is `v1.0.0`.
+
+`[skip ci]` in a commit message skips both.
 
 Write each commit message as a short changelog: a summary line that starts with the branch id (`F-L001: …`), then what was **Added**, **Changed** and **Fixed**.
 

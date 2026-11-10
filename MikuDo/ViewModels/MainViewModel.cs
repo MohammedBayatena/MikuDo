@@ -146,7 +146,9 @@ public partial class MainViewModel : ObservableObject
         // A tip names keys; when they change it is written again.
         Shortcuts.Changed += () => ShowTipAt(_tipIndex);
         ReloadWorkspaces();
+        RefreshShortcuts();
         ReloadRecentNotes();
+        SyncNoteSquares();
         LoadNoteTree();
         NavigateToWorkspace(Workspaces.FirstOrDefault());
         // A note's row shows when it is open in a reader window.
@@ -423,12 +425,12 @@ public partial class MainViewModel : ObservableObject
 
     public void ReloadWorkspaces()
     {
-        var counts = App.Database.GetWorkspaceOpenCounts();
+        var summaries = App.Database.GetWorkspaceSummaries();
 
         var defaultName = App.Database.GetDefaultWorkspaceName();
-        var items = new List<WorkspaceNavItem> { new(null, counts.GetValueOrDefault(""), defaultName) };
-        items.AddRange(App.Database.GetAllWorkspaces()
-            .Select(ws => new WorkspaceNavItem(ws, counts.GetValueOrDefault(ws.Id.ToString()), defaultName)));
+        var items = new List<WorkspaceNavItem> { new(null, defaultName) };
+        items.AddRange(App.Database.GetAllWorkspaces().Select(ws => new WorkspaceNavItem(ws, defaultName)));
+        foreach (var item in items) item.Take(summaries.GetValueOrDefault(item.Id ?? ""));
 
         Workspaces = new ObservableCollection<WorkspaceNavItem>(items);
         SyncNavHighlight();
@@ -437,9 +439,10 @@ public partial class MainViewModel : ObservableObject
     /// <summary>Refreshes badge counts without rebuilding the list.</summary>
     public void RefreshCounts()
     {
-        var counts = App.Database.GetWorkspaceOpenCounts();
+        var summaries = App.Database.GetWorkspaceSummaries();
         foreach (var item in Workspaces)
-            item.Count = counts.GetValueOrDefault(item.Id ?? "");
+            item.Take(summaries.GetValueOrDefault(item.Id ?? ""));
+        RefreshShortcuts();
     }
 
     private void SyncNavHighlight()
@@ -1177,7 +1180,7 @@ public partial class MainViewModel : ObservableObject
         var snapshots = fresh.Select(t => t.Snapshot()).ToList();
         foreach (var task in fresh)
         {
-            // It changes column, so it lands by date and priority like any card moved by a button.
+            // It changes column, so it lands by priority and age like any card moved by a button.
             task.IsPlaced = false;
             task.Status = TodoStatus.Completed;
             task.CompletedAt = DateTime.UtcNow;

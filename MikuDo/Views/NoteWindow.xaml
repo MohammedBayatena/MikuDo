@@ -97,7 +97,7 @@
         <!-- ═══ Title bar: the file, what it is, and the window's own buttons ═══ -->
         <Border Grid.Row="0" Background="{DynamicResource SurfaceMutedBrush}"
                 BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
-            <DockPanel Margin="14,0,8,0" LastChildFill="True">
+            <DockPanel Margin="14,0,0,0" LastChildFill="True">
                 <Image DockPanel.Dock="Left" Width="20" Height="20" VerticalAlignment="Center" Source="pack://application:,,,/MikuDo;component/Assets/logo.png" RenderOptions.BitmapScalingMode="HighQuality"/>
                 <TextBlock DockPanel.Dock="Left" Text="{Binding FileName}" Margin="10,0,0,0" MaxWidth="360"
                            FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
@@ -110,13 +110,14 @@
                     <TextBlock Text="Unsaved" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentDarkBrush}"/>
                 </Border>
 
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                <!-- The window's own buttons fill the bar's height; the rest sit in its middle -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                    <Button Style="{StaticResource ZoomChip}" Margin="0,0,8,0" Click="ZoomChip_Click"
+                    <Button Style="{StaticResource ZoomChip}" Margin="0,0,8,0" VerticalAlignment="Center" Click="ZoomChip_Click"
                             Visibility="{Binding IsNoteZoomed, Source={x:Static ui:Display.Current}, Converter={StaticResource Vis}}"/>
                     <Button x:Name="WindowsButton" Style="{StaticResource WindowListButton}" Margin="0,0,6,0" Click="Windows_Click"
                             ToolTip="{Binding [window.next], Source={x:Static svc:ShortcutText.InParens}, StringFormat='Switch to MikuDo or another reader window{0}'}"/>
-                    <ToggleButton Style="{StaticResource PinToggle}" Margin="0,0,10,0" ToolTip="Keep this window above other windows"
+                    <ToggleButton Style="{StaticResource PinToggle}" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Keep this window above other windows"
                                   IsChecked="{Binding Topmost, RelativeSource={RelativeSource AncestorType=Window}}"
                                   Click="OnTop_Click"/>
                     <Button Style="{StaticResource WindowChromeButton}" Click="Minimize_Click" ToolTip="Minimise">

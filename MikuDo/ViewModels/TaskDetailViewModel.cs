@@ -141,7 +141,7 @@ public partial class TaskDetailViewModel : ObservableObject
     [ObservableProperty] private string _markdown = string.Empty;
     [ObservableProperty] private string _renderedHtml = string.Empty;
     [ObservableProperty] private TodoStatus _status = TodoStatus.Active;
-    [ObservableProperty] private TodoPriority _priority = TodoPriority.None;
+    [ObservableProperty] private TodoPriority _priority = TodoPriority.Low;
     [ObservableProperty] private string _editorMode = "Split";      // Edit | Split | Preview
     [ObservableProperty] private bool _isRecording;
     [ObservableProperty] private string _subtaskQuery = string.Empty;
@@ -224,6 +224,21 @@ public partial class TaskDetailViewModel : ObservableObject
     public MainViewModel Main => _main;
     public bool IsVaultTask => _isVault;
     public bool IsExistingTask => _existing != null;
+
+    /// <summary>A saved task outside the vault can be pinned to the sidebar's Shortcuts.</summary>
+    public bool CanPin => _existing != null && !_isVault;
+
+    public bool IsPinned => _main.IsPinned(TaskId);
+
+    [RelayCommand]
+    private void TogglePinned()
+    {
+        if (_existing == null || _isVault) return;
+        _main.SetPinned(new[] { _existing }, !IsPinned);
+    }
+
+    /// <summary>Pinned or unpinned from anywhere, the page's Pin button follows.</summary>
+    private void OnPinsChanged(object? sender, EventArgs e) => OnPropertyChanged(nameof(IsPinned));
     public string WorkspaceLabel { get; }
 
     /// <summary>
@@ -262,6 +277,8 @@ public partial class TaskDetailViewModel : ObservableObject
         _main = main;
         _existing = existing;
         _isVault = isVault;
+        // Weakly, so a page left behind is not kept alive by the shell.
+        System.Windows.WeakEventManager<MainViewModel, EventArgs>.AddHandler(main, nameof(MainViewModel.PinsChanged), OnPinsChanged);
         _workspaceId = existing?.WorkspaceId ?? workspaceId;
         ParentLabel = parentLabel;
 
@@ -338,7 +355,7 @@ public partial class TaskDetailViewModel : ObservableObject
     {
         var status = row.IsDone ? TodoStatus.Completed : TodoStatus.Active;
 
-        // A task changing column lands by date and priority, as one moved on the board does.
+        // A task changing column lands by priority and age, as one moved on the board does.
         if (row.Item.Status != status) row.Item.IsPlaced = false;
         row.Item.Status = status;
         row.Item.CompletedAt = row.IsDone ? DateTime.UtcNow : null;
@@ -1883,6 +1900,10 @@ public partial class TaskDetailViewModel : ObservableObject
         foreach (var id in _removedMediaIds) App.Database.DeleteImage(id);
         _removedMediaIds.Clear();
         RaiseDates();
+        OnPropertyChanged(nameof(CanPin));
+        OnPropertyChanged(nameof(IsPinned));
+        // A pinned or recent task's square shows its title as it now is.
+        _main.RefreshShortcuts();
     }
 
     private void DiscardNewMedia()

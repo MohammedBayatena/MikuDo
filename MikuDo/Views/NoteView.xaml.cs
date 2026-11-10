@@ -184,6 +184,7 @@ public partial class NoteView : UserControl, IFindHost
             core.WebMessageReceived += OnWebMessage;
             PreviewWebView.NavigationCompleted += OnNavigationCompleted;
             await core.AddScriptToExecuteOnDocumentCreatedAsync(FindScript.Source);
+            await PreviewTips.Attach(core, NoteHost);
 
             _webViewReady = true;
             PreviewWebView.Visibility = Visibility.Visible;

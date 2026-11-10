@@ -103,6 +103,7 @@
     <Geometry x:Key="IconPrompt" po:Freeze="True">M5,7 l5,5 l-5,5 M12,17 h7</Geometry>
     <Geometry x:Key="IconLayout" po:Freeze="True">M5,4 h14 a2,2 0 0 1 2,2 v12 a2,2 0 0 1 -2,2 h-14 a2,2 0 0 1 -2,-2 v-12 a2,2 0 0 1 2,-2 z M3,9 h18 M9,9 v11</Geometry>
     <Geometry x:Key="IconTaskSquare" po:Freeze="True">M8,4 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z M8.5,12 l2.5,2.5 l4.5,-5</Geometry>
+    <Geometry x:Key="IconTask" po:Freeze="True">M9,4.5 H7 a2,2 0 0 0 -2,2 V19 a2,2 0 0 0 2,2 h10 a2,2 0 0 0 2,-2 V6.5 a2,2 0 0 0 -2,-2 H15 M10,3 h4 a1,1 0 0 1 1,1 v1.5 a1,1 0 0 1 -1,1 h-4 a1,1 0 0 1 -1,-1 V4 a1,1 0 0 1 1,-1 z M9,11 h6 M9,15 h4</Geometry>
     <Geometry x:Key="IconCamera" po:Freeze="True">M4,8 h3 l2,-3 h6 l2,3 h3 v11 H4 z M8.5,13 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0</Geometry>
     <Geometry x:Key="IconKeyboard" po:Freeze="True">M5,6 h14 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-14 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z M7,10 h1 M11,10 h1 M15,10 h1 M7,14 h10</Geometry>
     <Geometry x:Key="IconWarning" po:Freeze="True">M12,4 l9,16 H3 z M12,10 v4 M12,17 v0.5</Geometry>

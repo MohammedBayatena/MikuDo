@@ -1,0 +1,55 @@
+# Builds MikuDo and checks it on every pull request, as the branch would be
+# once merged. Pushes are left alone: dev and main go to Release, and work on
+# other branches is checked when it asks to be merged.
+name: CI
+
+on:
+  pull_request:
+
+# A newer push to the same pull request makes an older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and check
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Restore
+        run: dotnet restore MikuDo.sln
+
+      - name: Build
+        run: dotnet build MikuDo.sln -c Release --no-restore
+
+      # Runs every test project in the solution, whenever there are any.
+      - name: Test
+        run: dotnet test MikuDo.sln -c Release --no-build
+
+      # The five themes hold their contrast targets, and the XAML in the repo
+      # is what tools/theme_studio.py writes, not hand edits that drifted.
+      - name: Themes
+        shell: bash
+        run: |
+          out="$RUNNER_TEMP/themes"
+          mkdir -p "$out"
+          python tools/theme_studio.py --write "$out"
+          for f in "$out"/*.xaml; do
+            diff --strip-trailing-cr -q "MikuDo/Themes/$(basename "$f")" "$f"
+          done

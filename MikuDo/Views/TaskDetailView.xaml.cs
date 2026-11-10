@@ -167,6 +167,7 @@ public partial class TaskDetailView : UserControl, IFindHost
             PreviewWebView.CoreWebView2.WebMessageReceived += OnWebMessage;
             PreviewWebView.NavigationCompleted += OnNavigationCompleted;
             await PreviewWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(FindScript.Source);
+            await Services.PreviewTips.Attach(PreviewWebView.CoreWebView2);
 
             _webViewReady = true;
             PreviewWebView.Visibility = Visibility.Visible;

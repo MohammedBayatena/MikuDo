@@ -100,6 +100,7 @@ public partial class MainViewModel
             if (row.IsExpanded) AddContents(rows, row);
         }
         ShowRows(rows);
+        SyncNoteSquares();
     }
 
     /// <summary>
@@ -282,6 +283,7 @@ public partial class MainViewModel
     /// <summary>Keeps the Recent rows in step with <see cref="RecentNotes"/> without laying out the folders again.</summary>
     private void SyncRecentRows()
     {
+        SyncNoteSquares();
         var group = NoteRows.Count > 0 ? NoteRows[0] as RecentGroupRow : null;
         if (group == null || RecentNotes.Count == 0)
         {
@@ -318,18 +320,22 @@ public partial class MainViewModel
     /// <summary>Marks the row of the note on screen, and its unsaved dot, wherever it shows.</summary>
     private void MarkNoteRows()
     {
-        var open = OpenNotePage;
         foreach (var row in RecentNotes) Mark(row);
         foreach (var row in NoteRows)
             if (row is NoteRow { Folder: not null } note) Mark(note);
+        MarkShortcuts();
 
-        void Mark(NoteRow row)
-        {
-            var active = open != null && SamePath(row.Path, open.Path);
-            row.IsActive = active;
-            row.IsDirty = active && open!.IsDirty;
-            row.IsInWindow = Views.NoteWindow.Find(row.Path) != null;
-        }
+        void Mark(NoteRow row) => MarkNote(row);
+    }
+
+    /// <summary>Marks a note's row: the one on screen, its unsaved dot, and whether a reader window has it.</summary>
+    private void MarkNote(NoteRow row)
+    {
+        var open = OpenNotePage;
+        var active = open != null && SamePath(row.Path, open.Path);
+        row.IsActive = active;
+        row.IsDirty = active && open!.IsDirty;
+        row.IsInWindow = Views.NoteWindow.Find(row.Path) != null;
     }
 
     // ── Opening and shutting ────────────────────────────────────

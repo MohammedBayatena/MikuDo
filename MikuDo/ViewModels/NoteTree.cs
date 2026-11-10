@@ -185,6 +185,18 @@ public partial class NoteRow : SidebarNoteRow
     public string Path { get; init; } = string.Empty;
     public string Name => System.IO.Path.GetFileName(Path);
 
+    /// <summary>The name without its extension, for the short label under a square.</summary>
+    public string Title => System.IO.Path.GetFileNameWithoutExtension(Path);
+
+    /// <summary>The folder the file is in, for its preview.</summary>
+    public string Location => System.IO.Path.GetDirectoryName(Path) ?? string.Empty;
+
+    /// <summary>Just the name of the folder the file is in.</summary>
+    public string FolderName => System.IO.Path.GetFileName(Location) is { Length: > 0 } name ? name : Location;
+
+    /// <summary>When the file last changed, read from disk each time the preview opens.</summary>
+    public string Changed => File.Exists(Path) ? "Changed " + When.Phrase(File.GetLastWriteTimeUtc(Path)) : "Not found where it was";
+
     /// <summary>The opened folder the note was found in; null for a note in Recent.</summary>
     public NoteFolder? Folder { get; init; }
 
@@ -247,4 +259,39 @@ public class EmptyFolderRow : SidebarNoteRow
 
     internal override bool LooksLike(SidebarNoteRow fresh)
         => base.LooksLike(fresh) && fresh is EmptyFolderRow row && row.IsMissing == IsMissing;
+}
+
+/// <summary>
+/// A note under SHORTCUTS: one pinned there, or one opened lately. Drawn and
+/// opened as a note is, but its menu pins and unpins rather than forgetting it.
+/// </summary>
+public sealed class ShortcutNoteRow : NoteRow
+{
+    public bool IsPinned { get; init; }
+
+    /// <summary>What a shortcut is, for the colours of its square: "note" here, "task" for a task.</summary>
+    public string Kind => "note";
+}
+
+/// <summary>An opened folder as a square under NOTES, with what its preview tells.</summary>
+public sealed class FolderTile
+{
+    public FolderTile(NoteFolder folder, int count)
+    {
+        Folder = folder;
+        Count = count;
+    }
+
+    public NoteFolder Folder { get; }
+    public string Name => Folder.Name;
+    public string Path => Folder.Path;
+
+    /// <summary>Notes in it and below that are not hidden.</summary>
+    public int Count { get; }
+
+    public string CountText => IsMissing ? "Not found on disk" : Count == 1 ? "1 note" : $"{Count} notes";
+    public bool IsMissing => Folder.Scanned && Folder.Tree == null;
+
+    /// <summary>What the square shows, so an unchanged one can stay as it is.</summary>
+    internal string Look => $"{Path}|{Count}|{IsMissing}";
 }

@@ -152,6 +152,25 @@ STATUSES = ['Todo', 'Doing', 'Done']
 PRIORITIES = ['High', 'Medium', 'Low', 'None']
 LABELS = ['Green', 'Red', 'Amber', 'Blue', 'Violet', 'Cyan', 'Magenta', 'Olive']
 
+# The squares in the sidebar. Each is its icon (the ink) on a wash of the same hue,
+# inside an edge of it: Dashboard, Vault and Trash; workspaces in two colours by
+# turns; tasks, notes and folders; and the pin a pinned square wears. Each theme
+# picks the inks to suit itself; the wash and edge come from the ink, so they sit
+# right on light grounds and dark alike. The ink must stand out from its wash, from
+# the surface a list row sits on, and from the hover a row takes under the pointer.
+TILES = ['Dashboard', 'Vault', 'Trash', 'WorkspaceA', 'WorkspaceB', 'Task', 'Note', 'Folder', 'Pin']
+TILE_RATIO = 3.0
+
+def tile_wash(ink, dark):
+    _, C, H = oklch(ink)
+    return from_oklch(0.30, min(C * 0.42, 0.07), H) if dark else from_oklch(0.948, min(C * 0.34, 0.058), H)
+
+def tile_edge(ink, dark, strong):
+    _, C, H = oklch(ink)
+    if dark:
+        return from_oklch(0.60 if strong else 0.44, min(C * 0.6, 0.11), H)
+    return from_oklch(0.85, min(C * 0.55, 0.10), H)
+
 # The empty bars of a priority glyph: they only have to be seen, not read, so the
 # bar is lower than for text or controls; but it holds on every ground they sit on.
 GHOST_BACKGROUNDS = ['Surface', 'SurfaceMuted', 'SurfaceSubtle', 'Hover']
@@ -223,6 +242,11 @@ def derive(theme):
     for lab in LABELS:
         t[f'Label{lab}'] = fit(t[f'Label{lab}'], [t[f'Label{lab}Soft']], text)
     t['WindowCloseHover'] = fit(t['WindowCloseHover'], [t['OnDanger']], ui)
+    tile_ratio = theme.get('tile_ratio', TILE_RATIO)
+    for tile in TILES:
+        t[f'Tile{tile}Wash'] = tile_wash(t[f'Tile{tile}'], dark)
+        t[f'Tile{tile}Edge'] = tile_edge(t[f'Tile{tile}'], dark, theme.get('tile_strong', False))
+        t[f'Tile{tile}'] = fit(t[f'Tile{tile}'], [t[f'Tile{tile}Wash'], t['Surface'], t['Hover']], tile_ratio)
 
     checks = []
     def need(fg, bg, ratio, what):
@@ -284,6 +308,9 @@ def derive(theme):
     for lab in LABELS:
         need(f'Label{lab}', f'Label{lab}Soft', text, None)
     need('OnDanger', 'WindowCloseHover', ui, 'close icon on its hover')
+    for tile in TILES:
+        for bg in [f'Tile{tile}Wash', 'Surface', 'Hover']:
+            need(f'Tile{tile}', bg, theme.get('tile_ratio', TILE_RATIO), None)
     # The lightbox sits on its own dark scrim whatever the theme.
     scrim = over(t['GalleryScrim'], t['Surface'])
     for name in ['LightboxText', 'LightboxTextFaint']:
@@ -337,6 +364,9 @@ SUN = {
         'PriorityHigh': '#be2a3f', 'PriorityHighSoft': '#fdeef0', 'PriorityMedium': '#a35a00', 'PriorityMediumSoft': '#fff3e4',
         'PriorityLow': '#1f55d0', 'PriorityLowSoft': '#e4eeff', 'PriorityNone': '#5c6372', 'PriorityNoneSoft': '#f1f3f7',
         **LIGHT_LABELS,
+        # The squares: clear, bright inks around the violet.
+        'TileDashboard': '#0f8a5f', 'TileVault': '#c02686', 'TileTrash': '#d23a3a', 'TileWorkspaceA': '#6d28d9',
+        'TileWorkspaceB': '#0e7fa6', 'TileTask': '#2563eb', 'TileNote': '#0d8a8a', 'TileFolder': '#7c3aed', 'TilePin': '#d97706',
     },
 }
 
@@ -374,6 +404,9 @@ MOON = {
         'LabelAmber': '#f0b45c', 'LabelAmberSoft': '#33230f', 'LabelBlue': '#7aa9f7', 'LabelBlueSoft': '#15233d',
         'LabelViolet': '#b79cf7', 'LabelVioletSoft': '#251b3d', 'LabelCyan': '#5fc4d6', 'LabelCyanSoft': '#122b30',
         'LabelMagenta': '#e79ade', 'LabelMagentaSoft': '#301a2d', 'LabelOlive': '#a7cc63', 'LabelOliveSoft': '#212a17',
+        # The squares: the same inks, lifted to read on the dark.
+        'TileDashboard': '#4fd39c', 'TileVault': '#f084c8', 'TileTrash': '#f78a8a', 'TileWorkspaceA': '#b79cf7',
+        'TileWorkspaceB': '#6cc3e8', 'TileTask': '#7aa9f7', 'TileNote': '#5cd0c8', 'TileFolder': '#a78bfa', 'TilePin': '#f5b54a',
     },
 }
 
@@ -413,6 +446,9 @@ MIKU = {
         'PriorityLow': '#0b6aa8', 'PriorityLowSoft': '#e2f2fb', 'PriorityNone': '#3e5559', 'PriorityNoneSoft': '#e8f2f1',
         **LIGHT_LABELS,
         'LabelCyan': '#0a6b66', 'LabelCyanSoft': '#ddf4f0', 'LabelMagenta': '#b3125f', 'LabelMagentaSoft': '#fdebf3',
+        # The squares: her teals, her outfit's grey for the vault, and workspaces in teal and ribbon pink by turns.
+        'TileDashboard': '#0f9488', 'TileVault': '#4f6474', 'TileTrash': '#b3324f', 'TileWorkspaceA': '#0d8077',
+        'TileWorkspaceB': '#d0186f', 'TileTask': '#1479b8', 'TileNote': '#14a09a', 'TileFolder': '#0d8077', 'TilePin': '#e12885',
     },
 }
 
@@ -451,13 +487,16 @@ PEACH = {
         **LIGHT_LABELS,
         'LabelRed': '#b0213d', 'LabelRedSoft': '#fdebee', 'LabelMagenta': '#a8306a', 'LabelMagentaSoft': '#fce8f1',
         'LabelViolet': '#7b3fb8', 'LabelVioletSoft': '#f3eafb',
+        # The squares: rose and peach, plum, sage and a soft blue, all warm.
+        'TileDashboard': '#3f8a5c', 'TileVault': '#7a4a8c', 'TileTrash': '#b0213d', 'TileWorkspaceA': '#b8365f',
+        'TileWorkspaceB': '#c06a3a', 'TileTask': '#3d6fb5', 'TileNote': '#2f8a7e', 'TileFolder': '#b8365f', 'TilePin': '#c8780a',
     },
 }
 
 # Classic high contrast: near-black grounds, near-white text, yellow for
 # everything that is chosen or acted on, strong borders everywhere.
 CONTRAST = {
-    'name': 'Contrast', 'dark': True, 'text_ratio': 7.0, 'focus_inner': 'Canvas',
+    'name': 'Contrast', 'dark': True, 'text_ratio': 7.0, 'focus_inner': 'Canvas', 'tile_ratio': 4.5, 'tile_strong': True,
     'tokens': {
         'Canvas': '#08080a', 'Surface': '#0e0e11', 'SurfaceMuted': '#0b0b0e', 'SurfaceSubtle': '#131317',
         'Hover': '#24242c', 'Divider': '#5e5e6a', 'DividerSoft': '#4c4c57', 'Border': '#9a9aa6',
@@ -490,6 +529,9 @@ CONTRAST = {
         'LabelAmber': '#ffd34d', 'LabelAmberSoft': '#2e2708', 'LabelBlue': '#7cc4ff', 'LabelBlueSoft': '#0c2138',
         'LabelViolet': '#d0b8ff', 'LabelVioletSoft': '#1f1530', 'LabelCyan': '#6ee7ff', 'LabelCyanSoft': '#08262e',
         'LabelMagenta': '#ff9ce8', 'LabelMagentaSoft': '#2e0f29', 'LabelOlive': '#c8ea7a', 'LabelOliveSoft': '#1c260b',
+        # The squares: the brightest inks, on strong edges.
+        'TileDashboard': '#6ef08f', 'TileVault': '#ff9ce8', 'TileTrash': '#ff8a8a', 'TileWorkspaceA': '#d0b8ff',
+        'TileWorkspaceB': '#6ee7ff', 'TileTask': '#7cc4ff', 'TileNote': '#7ff0d0', 'TileFolder': '#ffe14d', 'TilePin': '#ffb347',
     },
 }
 
@@ -530,6 +572,9 @@ BRUSHES = {
     **{f'Priority{p}SoftBrush': f'Priority{p}Soft' for p in PRIORITIES},
     **{f'Label{l}Brush': f'Label{l}' for l in LABELS},
     **{f'Label{l}SoftBrush': f'Label{l}Soft' for l in LABELS},
+    **{f'Tile{k}Brush': f'Tile{k}' for k in TILES},
+    **{f'Tile{k}WashBrush': f'Tile{k}Wash' for k in TILES},
+    **{f'Tile{k}EdgeBrush': f'Tile{k}Edge' for k in TILES},
 }
 
 GRADIENTS = {

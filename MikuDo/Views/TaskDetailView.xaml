@@ -116,6 +116,37 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="4" Orientation="Horizontal">
+                    <!-- Pins the task to Shortcuts in the sidebar; lit while it is pinned -->
+                    <Button Padding="11,8" FontSize="11.5" Margin="0,0,8,0" Command="{Binding TogglePinnedCommand}"
+                            Tag="{Binding IsPinned, Converter={StaticResource BoolOnOff}}"
+                            Visibility="{Binding CanPin, Converter={StaticResource Vis}}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
+                                <Setter Property="ToolTip" Value="Pin to Shortcuts in the sidebar"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                                        <Setter Property="ToolTip" Value="Unpin from Shortcuts"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconPin}" Size="12" StrokeThickness="2.1" VerticalAlignment="Center"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <TextBlock Margin="6,0,0,0" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Pin"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                                                <Setter Property="Text" Value="Pinned"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Button>
                     <Button Style="{StaticResource GhostButton}" Content="Save" Padding="12,8" FontSize="11.5"
                             ToolTip="{Binding [app.save], Source={x:Static svc:ShortcutText.InParens}, StringFormat='Save and go back{0}'}" Command="{Binding SaveCommand}"
                             Visibility="{Binding Main.IsAutoSave, Converter={StaticResource Vis}, ConverterParameter=invert}"/>

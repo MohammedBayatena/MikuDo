@@ -14,7 +14,8 @@ namespace MikuDo.Views;
 /// it makes the window layered, and layered windows do not composite the child
 /// HWND that hosts the WebView2 markdown preview.
 ///
-/// A maximised window gets square corners, the way every other window does.
+/// A maximised window gets square corners, the way every other window does,
+/// and so does every window in the Flat layout, which has no rounded edges.
 /// </summary>
 internal static class RoundedWindow
 {
@@ -30,6 +31,10 @@ internal static class RoundedWindow
             window.SizeChanged += (_, _) => Update(window, radius);
             window.StateChanged += (_, _) => Update(window, radius);
             window.DpiChanged += (_, _) => Update(window, radius);
+
+            void OnLayout(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => Update(window, radius);
+            Controls.Layout.Current.PropertyChanged += OnLayout;
+            window.Closed += (_, _) => Controls.Layout.Current.PropertyChanged -= OnLayout;
         }
 
         if (new WindowInteropHelper(window).Handle != IntPtr.Zero) Hook();
@@ -41,7 +46,7 @@ internal static class RoundedWindow
         var hwnd = new WindowInteropHelper(window).Handle;
         if (hwnd == IntPtr.Zero) return;
 
-        var rounded = window.WindowState != WindowState.Maximized;
+        var rounded = window.WindowState != WindowState.Maximized && !Controls.Layout.Current.IsFlat;
 
         if (TrySetDwmCorners(hwnd, rounded))
         {

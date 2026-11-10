@@ -79,11 +79,30 @@ public static class SingleInstance
 
 /// <summary>
 /// Puts MikuDo under Explorer's "Open with" for Markdown files, for this user
-/// only. It never makes MikuDo the default app for them.
+/// only, or takes it out again. It never makes MikuDo the default app for
+/// them. Only the Settings page does either, when the user turns it on or
+/// off: what Windows offers for a file type is the user's choice to make.
 /// </summary>
 public static class OpenWith
 {
     private const string ProgId = "MikuDo.Markdown";
+
+    private static string? Command => Environment.ProcessPath is { } exe ? $"\"{exe}\" \"%1\"" : null;
+
+    /// <summary>True when Open with starts this copy of MikuDo. A copy moved elsewhere is not the one listed.</summary>
+    public static bool IsRegistered()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey($@"Software\Classes\{ProgId}\shell\open\command");
+            return Command != null && key?.GetValue(null) as string == Command;
+        }
+        catch (Exception ex)
+        {
+            LogService.Error("Could not read MikuDo's place in Open with", ex);
+            return false;
+        }
+    }
 
     public static void Register()
     {
@@ -92,7 +111,7 @@ public static class OpenWith
             var exe = Environment.ProcessPath;
             if (exe == null || !Path.GetFileName(exe).Equals("MikuDo.exe", StringComparison.OrdinalIgnoreCase)) return;
 
-            var command = $"\"{exe}\" \"%1\"";
+            var command = Command!;
             using var classes = Registry.CurrentUser.CreateSubKey(@"Software\Classes");
             var changed = false;
 
@@ -119,6 +138,34 @@ public static class OpenWith
         catch (Exception ex)
         {
             LogService.Error("Could not add MikuDo to Open with", ex);
+        }
+    }
+
+    /// <summary>Takes out every key and value <see cref="Register"/> writes, whichever copy of MikuDo wrote them.</summary>
+    public static void Unregister()
+    {
+        try
+        {
+            using var classes = Registry.CurrentUser.OpenSubKey(@"Software\Classes", writable: true);
+            if (classes == null) return;
+
+            bool changed;
+            using (var listed = classes.OpenSubKey(ProgId)) changed = listed != null;
+            classes.DeleteSubKeyTree(ProgId, throwOnMissingSubKey: false);
+            classes.DeleteSubKeyTree(@"Applications\MikuDo.exe", throwOnMissingSubKey: false);
+            foreach (var extension in NoteFiles.Extensions)
+            {
+                using var list = classes.OpenSubKey(extension + @"\OpenWithProgids", writable: true);
+                if (list?.GetValue(ProgId) == null) continue;
+                list.DeleteValue(ProgId, throwOnMissingValue: false);
+                changed = true;
+            }
+
+            if (changed) SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+        }
+        catch (Exception ex)
+        {
+            LogService.Error("Could not take MikuDo out of Open with", ex);
         }
     }
 

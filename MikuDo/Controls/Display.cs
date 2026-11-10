@@ -8,9 +8,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace MikuDo.Controls;
 
 /// <summary>
-/// How large things are drawn, and where a note's page sits. App size makes the
-/// whole app bigger: an accessibility choice whose first step is the normal
-/// size, so it never shrinks below it. Text size zooms a note in either reader.
+/// How large things are drawn, and where a note's page sits. App size draws the
+/// whole app a step smaller than normal, to fit more in, or a few steps bigger,
+/// for easier reading. Text size zooms a note in either reader.
 /// A note's page runs across the whole width or sits in a centred column. Each
 /// is stored as a setting, and every window follows a change on the spot.
 /// </summary>
@@ -18,8 +18,8 @@ public sealed partial class Display : ObservableObject
 {
     public static Display Current { get; } = new();
 
-    /// <summary>The sizes Settings offers for the whole app. The first is the normal size, and the smallest.</summary>
-    public static readonly double[] AppSizes = { 1.0, 1.1, 1.25, 1.4, 1.6 };
+    /// <summary>The sizes Settings offers for the whole app, smallest first. 1.0 is the normal size, where MikuDo starts.</summary>
+    public static readonly double[] AppSizes = { 0.9, 1.0, 1.1, 1.25, 1.4, 1.6 };
 
     /// <summary>The steps a note's text zooms through, as a browser's do.</summary>
     public static readonly double[] NoteZooms = { 0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0 };

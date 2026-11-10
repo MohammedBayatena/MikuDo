@@ -8,9 +8,51 @@ namespace MikuDo.Views;
 
 public partial class MainWindow : Window
 {
+    /// <summary>The bars of things opened lately, over the Recent squares of NOTES and SHORTCUTS.</summary>
+    private readonly Controls.HoverFlyout _notesBar;
+    private readonly Controls.HoverFlyout _tasksBar;
+
+    /// <summary>The preview card of whichever square the pointer rests on, for squares that do not open a bar.</summary>
+    private readonly Controls.HoverCards _cards;
+
+    /// <summary>Room a Recent bar keeps around itself for its shadow.</summary>
+    private const double RecentBarShadowRoom = 10;
+
     public MainWindow()
     {
         InitializeComponent();
+        // A Recent square's bar and another square's card both open under the
+        // square; only one of them shows at a time: whichever opens closes the rest.
+        _notesBar = new Controls.HoverFlyout(NotesRecentSquare, NotesRecentBar, RecentBarShadowRoom);
+        _tasksBar = new Controls.HoverFlyout(ShortcutsRecentSquare, ShortcutsRecentBar, RecentBarShadowRoom);
+        _cards = new Controls.HoverCards(PreviewPopup);
+        _notesBar.Entered += _cards.Close;
+        _tasksBar.Entered += _cards.Close;
+        _notesBar.Opened += () =>
+        {
+            _tasksBar.Close();
+            _cards.Close();
+            NotesBarDetail.Content = (DataContext as MainViewModel)?.LatestNote;
+        };
+        _tasksBar.Opened += () =>
+        {
+            _notesBar.Close();
+            _cards.Close();
+            ShortcutsBarDetail.Content = (DataContext as MainViewModel)?.RecentShortcut;
+        };
+        _cards.Opened += () =>
+        {
+            _notesBar.Close();
+            _tasksBar.Close();
+        };
+        Deactivated += (_, _) =>
+        {
+            _notesBar.Close();
+            _tasksBar.Close();
+            _cards.Close();
+        };
+        // A click anywhere but on the card means the user has moved on from it.
+        PreviewMouseDown += (_, _) => _cards.Dismiss();
         MaximizeFix.Apply(this);
         RoundedWindow.Apply(this, CornerRadius);
         Controls.Display.Scale(this, (FrameworkElement)Content, TitleBarHeight);
@@ -46,6 +88,7 @@ public partial class MainWindow : Window
         DragOver += Window_DragOver;
         Drop += Window_Drop;
         StateChanged += (_, _) => SyncMaximizedChrome();
+        Controls.Layout.Current.PropertyChanged += (_, _) => SyncMaximizedChrome();
         KeyDown += OnKeyDown;
         PreviewMouseDown += OnPreviewMouseDown;
         Deactivated += (_, _) => Quick?.Close();
@@ -122,6 +165,9 @@ public partial class MainWindow : Window
         if (NoteRowMenu(vm, element.DataContext) is { } items) Controls.Menus.Open(element, items);
     }
 
+    private static MenuItem PinItem(MainViewModel vm, NoteRow note)
+        => Controls.Menus.Item(vm.IsNotePinned(note.Path) ? "Unpin from Shortcuts" : "Pin to Shortcuts", vm.ToggleNotePinCommand, note);
+
     /// <summary>The menu for a row under NOTES, which depends on what the row is.</summary>
     private static object?[]? NoteRowMenu(MainViewModel vm, object? row) => row switch
     {
@@ -135,6 +181,7 @@ public partial class MainWindow : Window
             Controls.Menus.Item("Open in new window", vm.OpenNoteInWindowCommand, recent),
             Controls.Menus.Item("Show in Explorer", vm.ShowNoteInFolderCommand, recent),
             Controls.Menus.Gap,
+            PinItem(vm, recent),
             Controls.Menus.Item("Remove from Recent", vm.ForgetNoteCommand, recent)
         },
         NoteRow note => new object?[]
@@ -143,6 +190,7 @@ public partial class MainWindow : Window
             Controls.Menus.Item("Open in new window", vm.OpenNoteInWindowCommand, note),
             Controls.Menus.Item("Show in Explorer", vm.ShowNoteInFolderCommand, note),
             Controls.Menus.Gap,
+            PinItem(vm, note),
             note.IsHiddenItem
                 ? Controls.Menus.Item("Show in tree", vm.ShowInNoteTreeCommand, note)
                 : Controls.Menus.Item("Hide from tree", vm.HideInNoteTreeCommand, note)
@@ -209,6 +257,193 @@ public partial class MainWindow : Window
                                  })),
             Controls.Menus.Gap,
             Controls.Menus.Item(vm.IsWorkspacesOpen ? "Fold away" : "Show", vm.ToggleWorkspacesSectionCommand));
+    }
+
+    private void NotesHeader_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || sender is not FrameworkElement element) return;
+        e.Handled = true;
+        Controls.Menus.Open(element,
+            Controls.Menus.Check("Show as a list", vm.IsNotesOpen && !vm.IsNotesCompact, vm.ShowAllNotesCommand),
+            Controls.Menus.Check("Show as squares", vm.IsNotesOpen && vm.IsNotesCompact,
+                                 new CommunityToolkit.Mvvm.Input.RelayCommand(() =>
+                                 {
+                                     vm.IsNotesOpen = true;
+                                     vm.IsNotesCompact = true;
+                                 })),
+            Controls.Menus.Gap,
+            Controls.Menus.Item(vm.IsNotesOpen ? "Fold away" : "Show", vm.ToggleNotesSectionCommand));
+    }
+
+    // ── Shortcuts ───────────────────────────────────────────────
+
+    private void ShortcutsHeader_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || sender is not FrameworkElement element) return;
+        e.Handled = true;
+        Controls.Menus.Open(element,
+            Controls.Menus.Check("Show as a list", vm.IsShortcutsOpen && !vm.IsShortcutsCompact,
+                                 new CommunityToolkit.Mvvm.Input.RelayCommand(() =>
+                                 {
+                                     vm.IsShortcutsOpen = true;
+                                     vm.IsShortcutsCompact = false;
+                                 })),
+            Controls.Menus.Check("Show as squares", vm.IsShortcutsOpen && vm.IsShortcutsCompact,
+                                 new CommunityToolkit.Mvvm.Input.RelayCommand(() =>
+                                 {
+                                     vm.IsShortcutsOpen = true;
+                                     vm.IsShortcutsCompact = true;
+                                 })),
+            Controls.Menus.Gap,
+            vm.HasRecentShortcut ? Controls.Menus.Item("Clear recent", vm.ClearRecentShortcutCommand) : null,
+            vm.HasPinnedShortcuts ? Controls.Menus.Item("Clear pinned", vm.ClearPinnedShortcutsCommand) : null,
+            vm.HasRecentShortcut || vm.HasPinnedShortcuts ? Controls.Menus.Gap : null,
+            Controls.Menus.Item(vm.IsShortcutsOpen ? "Fold away" : "Show", vm.ToggleShortcutsSectionCommand));
+    }
+
+    /// <summary>A shortcut's own menu: open it, pin or unpin it, and clear Recent from the recent one.</summary>
+    /// <summary>A shortcut's own menu: open it, pin or unpin it, and clear Recent from one of its own.</summary>
+    private void Shortcut_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || sender is not FrameworkElement element) return;
+        var (pinned, open) = element.DataContext switch
+        {
+            ShortcutTask task => (task.IsPinned, Controls.Menus.Item("Open task", vm.OpenShortcutCommand, task)),
+            ShortcutNoteRow note => (note.IsPinned, Controls.Menus.Item("Open", vm.OpenShortcutCommand, note)),
+            _ => (false, (MenuItem?)null)
+        };
+        if (open == null) return;
+        e.Handled = true;
+        var shortcut = element.DataContext;
+        Controls.Menus.Open(element,
+            open,
+            shortcut is NoteRow row ? Controls.Menus.Item("Open in new window", vm.OpenNoteInWindowCommand, row) : null,
+            shortcut is NoteRow shown ? Controls.Menus.Item("Show in Explorer", vm.ShowNoteInFolderCommand, shown) : null,
+            Controls.Menus.Gap,
+            pinned
+                ? Controls.Menus.Item("Unpin from Shortcuts", vm.UnpinShortcutCommand, shortcut)
+                : Controls.Menus.Item("Pin to Shortcuts", vm.PinShortcutCommand, shortcut),
+            pinned ? null : Controls.Menus.Item("Clear recent", vm.ClearRecentShortcutCommand));
+    }
+
+    private void Preview_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is FrameworkElement square) _cards.Enter(square);
+    }
+
+    private void Preview_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (sender is FrameworkElement square) _cards.Leave(square);
+    }
+
+    /// <summary>Open in Explorer, on a folder's preview card.</summary>
+    private void PreviewOpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        _cards.Close();
+        if (DataContext is MainViewModel vm && sender is FrameworkElement { DataContext: FolderTile tile })
+            vm.ShowNoteFolderInExplorerCommand.Execute(tile.Path);
+    }
+
+    /// <summary>A square in a Recent bar, pointed at: the bar's foot tells about it.</summary>
+    private void BarItem_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: { } item }) return;
+        if (item is ShortcutTask or ShortcutNoteRow) ShortcutsBarDetail.Content = item;
+        else NotesBarDetail.Content = item;
+    }
+
+    private void RecentBarItem_Click(object sender, RoutedEventArgs e)
+    {
+        _tasksBar.Close();
+        _cards.Close();
+        if (DataContext is MainViewModel vm && sender is FrameworkElement { DataContext: { } shortcut })
+            vm.OpenShortcutCommand.Execute(shortcut);
+    }
+
+    private void NoteBarItem_Click(object sender, RoutedEventArgs e)
+    {
+        _notesBar.Close();
+        _cards.Close();
+        if (DataContext is MainViewModel vm && sender is FrameworkElement { DataContext: NoteRow note })
+            vm.OpenNoteRowCommand.Execute(note);
+    }
+
+    /// <summary>A folder's square: the tree comes back with the folder open, brought into sight.</summary>
+    private void FolderSquare_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || sender is not FrameworkElement { DataContext: FolderTile tile }) return;
+        vm.ShowNoteFolderCommand.Execute(tile.Folder);
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (FolderRowOf(CardGrid, tile.Folder) is { } row)
+                row.BringIntoView(new Rect(0, 0, row.ActualWidth, row.ActualHeight + 160));
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
+
+        static FrameworkElement? FolderRowOf(DependencyObject node, NoteFolder folder)
+        {
+            for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(node, i);
+                if (child is Button { DataContext: FolderRow { IsRoot: true } row } button && row.Folder == folder) return button;
+                if (FolderRowOf(child, folder) is { } deeper) return deeper;
+            }
+            return null;
+        }
+    }
+
+    /// <summary>More, at the end of the pinned squares: every pinned task, to open one.</summary>
+    private void ShortcutsMore_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || sender is not FrameworkElement element) return;
+        var rows = vm.PinnedShortcuts.Select(p => (object?)Controls.Menus.Item(Shorten(p switch
+        {
+            ShortcutTask task => task.Title,
+            NoteRow note => note.Name,
+            _ => string.Empty
+        }), vm.OpenShortcutCommand, p)).ToList();
+        rows.Add(Controls.Menus.Gap);
+        rows.Add(Controls.Menus.Item("Show as a list", new CommunityToolkit.Mvvm.Input.RelayCommand(() => vm.IsShortcutsCompact = false)));
+        Controls.Menus.OpenBelow(element, rows.ToArray());
+
+        static string Shorten(string title) => title.Length <= 48 ? title : title[..47].TrimEnd() + "…";
+    }
+
+    /// <summary>Dashboard, Vault and Trash, right-clicked: show them as a list or as squares.</summary>
+    private void Pages_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || sender is not FrameworkElement element) return;
+        e.Handled = true;
+        Controls.Menus.Open(element,
+            Controls.Menus.Check("Show as a list", !vm.IsPagesCompact, new CommunityToolkit.Mvvm.Input.RelayCommand(() => vm.IsPagesCompact = false)),
+            Controls.Menus.Check("Show as squares", vm.IsPagesCompact, new CommunityToolkit.Mvvm.Input.RelayCommand(() => vm.IsPagesCompact = true)));
+    }
+
+    // ── The sidebar's edge ──────────────────────────────────────
+
+    /// <summary>How near the sidebar's edge the pointer comes, on the sidebar's side, before the button that hides it shows.</summary>
+    private const double EdgeReachInside = 48;
+
+    /// <summary>The same on the page's side: just past the button, which sits half over the page.</summary>
+    private const double EdgeReachOutside = 16;
+
+    /// <summary>
+    /// Shows the button on the sidebar's edge while the pointer is near the
+    /// edge. Measured from where the pointer is rather than from what it is
+    /// over, so moving from the sidebar onto the half of the button over the
+    /// page never hides it on the way.
+    /// </summary>
+    private void CardGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        var x = e.GetPosition(CardGrid).X - CardGrid.ColumnDefinitions[0].ActualWidth;
+        ShowHideSidebarBubble(x > -EdgeReachInside && x < EdgeReachOutside);
+    }
+
+    private void CardGrid_MouseLeave(object sender, MouseEventArgs e) => ShowHideSidebarBubble(false);
+
+    private void ShowHideSidebarBubble(bool show)
+    {
+        var tag = show ? "on" : "off";
+        if (!Equals(HideSidebarBubble.Tag, tag)) HideSidebarBubble.Tag = tag;
     }
 
     // ── Sidebar width ───────────────────────────────────────────
@@ -521,17 +756,24 @@ public partial class MainWindow : Window
     private const double TitleBarHeight = 44;
 
     /// <summary>
-    /// The card keeps its rounded corners in both states; only the canvas band
-    /// around it tightens when the window is maximised.
+    /// Where the card that holds the app sits. In Islands it is a rounded card
+    /// on the canvas with its shadow, the canvas band around it tightening when
+    /// the window is maximised. In Flat it fills the window under the title
+    /// bar, square, with a line between them and no shadow.
     /// </summary>
     private void SyncMaximizedChrome()
     {
         var maximized = WindowState == WindowState.Maximized;
-        var band = maximized ? 6 : 8;
+        var flat = Controls.Layout.Current.IsFlat;
+        var band = flat ? 0 : maximized ? 6 : 8;
+        var radius = flat ? 0 : CornerRadius;
 
         // The shadow caster is a separate element, so it tracks the card.
         AppCard.Margin = AppCardShadow.Margin = new Thickness(band, TitleBarHeight, band, band);
-        Controls.RoundedClip.SetRadius(AppCardClip, CornerRadius);
+        AppCard.CornerRadius = AppCardClip.CornerRadius = new System.Windows.CornerRadius(radius);
+        AppCard.BorderThickness = new Thickness(0, flat ? 1 : 0, 0, 0);
+        AppCardShadow.Visibility = flat ? Visibility.Collapsed : Visibility.Visible;
+        Controls.RoundedClip.SetRadius(AppCardClip, radius);
 
         MaxIcon.Data = (System.Windows.Media.Geometry)FindResource(
             maximized ? "IconRestoreWindow" : "IconMaximize");
