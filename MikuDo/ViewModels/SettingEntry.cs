@@ -10,6 +10,7 @@ public static class SettingsSections
     public const string Notes = "SectionNotes";
     public const string NoteText = "SectionNoteText";
     public const string Readers = "SectionReaders";
+    public const string OpenWith = "SectionOpenWith";
     public const string AutoSave = "SectionAutoSave";
     public const string AiModel = "SectionAiModel";
     public const string Tips = "SectionTips";
@@ -48,6 +49,9 @@ public sealed record SettingEntry(string Name, string Area, string Description, 
         new("Reader windows when MikuDo closes", "Notes",
             "Notes open in windows of their own can stay open after the main window closes, or close with it.",
             SettingsSections.Readers, main => MainViewModel.ReadersOnCloseLabel(main.ReadersOnClose)),
+        new("Open with", "Notes",
+            "Lists MikuDo under Open with when you right-click a Markdown file in Explorer, for you only. It never becomes their default app.",
+            SettingsSections.OpenWith, _ => OnOff(Services.OpenWith.IsRegistered())),
         new("Screenshot Mode", "Tasks",
             "Choose whether Take a screenshot captures the primary monitor or every screen",
             SettingsSections.Screenshot, main => main.ScreenshotAllScreens ? "All screens" : "Primary monitor"),

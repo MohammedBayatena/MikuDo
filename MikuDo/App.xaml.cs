@@ -82,7 +82,6 @@ public partial class App : Application
             {
                 if (OpenGiven(main, path) == null) ShowMain(mainWindow);
             }));
-            _ = Task.Run(OpenWith.Register);
         }
         catch (Exception ex)
         {

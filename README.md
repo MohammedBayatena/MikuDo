@@ -99,7 +99,7 @@ MikuDo is a Markdown notes reader too. Point it at your folders and it keeps up 
   <tr>
     <td width="50%" valign="top">
       <b>Read and write</b><br>
-      <sub>An outline beside the page; Edit, Split or Preview with live Mermaid diagrams; <kbd>Ctrl</kbd>+wheel zoom, across the page or in a centred column. Reader windows stay on top if you like, outlive the main window, and switch with <kbd>Ctrl</kbd>+<kbd>`</kbd>; <code>.md</code> files open in MikuDo straight from Explorer.</sub>
+      <sub>An outline beside the page; Edit, Split or Preview with live Mermaid diagrams; <kbd>Ctrl</kbd>+wheel zoom, across the page or in a centred column. Reader windows stay on top if you like, outlive the main window, and switch with <kbd>Ctrl</kbd>+<kbd>`</kbd>; pointing at a link shows where it goes; turn on Open with in Settings and <code>.md</code> files open in MikuDo straight from Explorer.</sub>
     </td>
     <td width="50%" valign="top">
       <b>Find · <kbd>Ctrl</kbd>+<kbd>F</kbd></b><br>

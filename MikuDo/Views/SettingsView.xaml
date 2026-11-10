@@ -598,7 +598,7 @@
                         </Border>
 
                         <!-- Reader windows: what closing the main window does with them -->
-                        <Border x:Name="SectionReaders" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
+                        <Border x:Name="SectionReaders" Padding="{ui:ByLayout Islands=16, Flat='20,16'}" BorderBrush="{DynamicResource DividerSoftBrush}" BorderThickness="0,0,0,1">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" MinWidth="200"/>
@@ -622,6 +622,30 @@
                                     <Button Style="{StaticResource ChoiceBoxButton}" Content="Close them" Margin="8,0,0,0"
                                             Command="{Binding Main.SetReadersOnCloseCommand}" CommandParameter="Close"
                                             Tag="{Binding Main.ReadersOnClose, Converter={StaticResource EqOnOff}, ConverterParameter=Close}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Open with: MikuDo listed in Explorer for Markdown files, only when asked -->
+                        <Border x:Name="SectionOpenWith" Padding="{ui:ByLayout Islands=16, Flat='20,16'}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="200"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                    <TextBlock Text="Open with" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSubtleBrush}"
+                                               Text="Lists MikuDo under Open with when you right-click a Markdown file in Explorer, for you only. It never becomes their default app. If you move MikuDo to another folder, turn this on again."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="Off"
+                                            Command="{Binding SetOpenWithCommand}" CommandParameter="Off"
+                                            Tag="{Binding IsOpenWithOn, Converter={StaticResource BoolOnOff}, ConverterParameter=invert}"/>
+                                    <Button Style="{StaticResource ChoiceBoxButton}" Content="On" Margin="8,0,0,0"
+                                            Command="{Binding SetOpenWithCommand}" CommandParameter="On"
+                                            Tag="{Binding IsOpenWithOn, Converter={StaticResource BoolOnOff}}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>

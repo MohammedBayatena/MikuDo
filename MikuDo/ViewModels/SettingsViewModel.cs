@@ -93,6 +93,9 @@ public partial class SettingsViewModel : ObservableObject
     /// </summary>
     [ObservableProperty] private bool _isWriteUpOn = App.Database.GetSetting("DictationWriteUp") != "False";
 
+    /// <summary>Whether Explorer's Open with lists this copy of MikuDo for Markdown files. The registry says, not a stored setting.</summary>
+    [ObservableProperty] private bool _isOpenWithOn = OpenWith.IsRegistered();
+
     public MainViewModel Main { get; }
     public ObservableCollection<ThemeChoice> Themes { get; } = new();
     public ObservableCollection<AiModelRow> Models { get; } = new();
@@ -142,6 +145,14 @@ public partial class SettingsViewModel : ObservableObject
     /// <summary>"Full" or "Centered".</summary>
     [RelayCommand]
     private void SetNoteWidth(string? id) => Display.SetNoteCentered(id == Controls.Display.Centered);
+
+    /// <summary>"On" lists MikuDo under Open with; "Off" takes it out. Explorer is told off the UI thread.</summary>
+    [RelayCommand]
+    private async Task SetOpenWith(string? choice)
+    {
+        await Task.Run(choice == "On" ? OpenWith.Register : OpenWith.Unregister);
+        IsOpenWithOn = OpenWith.IsRegistered();
+    }
 
     [RelayCommand]
     private void ZoomNoteIn() => Display.StepNoteZoom(1);

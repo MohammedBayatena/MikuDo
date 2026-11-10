@@ -1,4 +1,5 @@
 using Markdig;
+using Markdig.Extensions.AutoIdentifiers;
 using MikuDo.Models;
 
 namespace MikuDo.Services;
@@ -9,7 +10,12 @@ public class MarkdownService
 
     public MarkdownService()
     {
+        // Headings take GitHub's ids, the ones a document's own contents links
+        // are written against: "## 1. Setup" is #1-setup. They are set before
+        // the advanced extensions, which keep an id scheme already set and
+        // otherwise bring their own, without the number.
         _pipeline = new MarkdownPipelineBuilder()
+            .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
             .UseAdvancedExtensions()
             .UseSoftlineBreakAsHardlineBreak()
             .Build();
