@@ -178,7 +178,7 @@ A single `MikuDo.exe` that runs without .NET installed:
 dotnet publish MikuDo -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
-Or skip the build: download `MikuDo-vX.Y.Z-win-x64.zip` from [Releases](https://github.com/MohammedBayatena/MikuDo/releases), unzip it anywhere and run `MikuDo.exe`. Keep the files beside it; it needs them.
+Or skip the build: download `MikuDo-vX.Y.Z-win-x64.zip` from [Releases](https://github.com/MohammedBayatena/MikuDo/releases), unzip it anywhere and run `MikuDo.exe`. Keep the files beside it; it needs them. A pre-release (`vX.Y.Z-dev.N`) has the newest work from `dev`.
 
 Your database, log and downloaded models live in `%LOCALAPPDATA%\Mikudo`; notes stay wherever you keep them.
 
@@ -190,7 +190,7 @@ MikuDo/                 the app (.NET 9, WPF, MVVM)
   Controls/ Themes/     custom-drawn controls, generated themes, icons
   Assets/               app icon, logo, fonts, bundled Mermaid
 tools/theme_studio.py   generates the five themes and checks their contrast
-.github/workflows/      CI for dev and pull requests; releases from main
+.github/workflows/      checks on pull requests; releases from dev and main
 docs/brand/             the logo, the mark and the source artwork
 docs/screenshots/       the pictures in this README
 ```
@@ -213,8 +213,8 @@ git switch -c feature/F-L001
 
 Branches merge into `dev`, and `dev` into `main`:
 
-- **CI** builds every push to `dev` and every pull request into `dev` or `main`. It runs the solution's tests, and regenerates the themes with `tools/theme_studio.py` to check they still pass their contrast targets and match the XAML in the repo.
-- **Release** runs when `main` moves. After the same checks it publishes the app, tags the next version and attaches the zipped app to a new [release](https://github.com/MohammedBayatena/MikuDo/releases). The version goes up one minor step each time (`v1.4.0` → `v1.5.0`). Put `#patch` or `#major` in the merge commit's message to take that step instead, or run Release by hand from the Actions tab and pick it. The first release is `v1.0.0`.
+- **CI** checks every pull request, as its branch would be once merged. It builds the app, runs the solution's tests, and regenerates the themes with `tools/theme_studio.py` to check they still pass their contrast targets and match the XAML in the repo.
+- **Release** runs when `dev` or `main` moves. It publishes the app, tags the version and attaches the zipped app to a [release](https://github.com/MohammedBayatena/MikuDo/releases). `main` makes a release, one minor step up from the last (`v1.4.0` → `v1.5.0`); `dev` makes a pre-release of the version `main` releases next (`v1.5.0-dev.1`, `v1.5.0-dev.2`, …). Put `#patch` or `#major` in the merge commit's message to take that step instead, or run Release by hand from the Actions tab on `dev` or `main` and pick it. The first release is `v1.0.0`.
 
 `[skip ci]` in a commit message skips both.
 

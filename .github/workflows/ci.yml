@@ -1,20 +1,15 @@
-# Builds MikuDo and checks it on every push to dev and every pull request into
-# dev or main. Release runs it too, before it publishes anything.
+# Builds MikuDo and checks it on every pull request, as the branch would be
+# once merged. Pushes are left alone: dev and main go to Release, and work on
+# other branches is checked when it asks to be merged.
 name: CI
 
 on:
-  push:
-    branches: [dev]
   pull_request:
-    branches: [dev, main]
-  workflow_call:
-  workflow_dispatch:
 
-# A newer push to the same branch makes an older run pointless; a release's
-# own run of these checks is left to finish.
+# A newer push to the same pull request makes an older run pointless.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.workflow == 'CI' }}
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

@@ -1,14 +1,16 @@
-# Publishes MikuDo as a GitHub release whenever main moves, normally by merging
-# dev into it, or when run by hand from the Actions tab.
+# Publishes MikuDo as a GitHub release whenever dev or main moves, or when run
+# by hand from the Actions tab on either of them.
 #
-# The version is the last release's tag, one minor step up: v1.4.0 -> v1.5.0.
-# "#patch" or "#major" in the commit message on main takes that step instead,
-# and a run by hand picks it. With no release yet, the first is v1.0.0.
+# main makes a release: the last release's version, one minor step up
+# (v1.4.0 -> v1.5.0). dev makes a pre-release of the version main releases
+# next, numbered in turn: v1.5.0-dev.1, v1.5.0-dev.2, and so on. "#patch" or
+# "#major" in the commit message takes that step instead, and a run by hand
+# picks it. With no release yet, the first is v1.0.0.
 name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
   workflow_dispatch:
     inputs:
       bump:
@@ -26,12 +28,10 @@ permissions:
   contents: write
 
 jobs:
-  check:
-    uses: ./.github/workflows/ci.yml
-
   release:
     name: Publish and release
-    needs: check
+    # A run by hand on any other branch has nothing to release.
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
     runs-on: windows-latest
     env:
       DOTNET_NOLOGO: true
@@ -51,8 +51,10 @@ jobs:
         env:
           BUMP: ${{ inputs.bump }}
           MESSAGE: ${{ github.event.head_commit.message }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          last=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
+          # The last full release; pre-releases carry a "-" and are left out.
+          last=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v -- - | head -n 1 || true)
           bump="${BUMP:-minor}"
           case "$MESSAGE" in
             *"#major"*) bump=major ;;
@@ -68,16 +70,33 @@ jobs:
               patch) next="$major.$minor.$((patch + 1))" ;;
             esac
           fi
-          echo "Last release: ${last:-none}. A $bump step makes v$next."
-          echo "version=$next" >> "$GITHUB_OUTPUT"
+          if [ "$BRANCH" = main ]; then
+            suffix=""
+            prerelease=false
+          else
+            count=$(git tag --list "v$next-dev.*" | wc -l)
+            suffix="dev.$((count + 1))"
+            prerelease=true
+          fi
+          tag="v$next${suffix:+-$suffix}"
+          echo "Last release: ${last:-none}. A $bump step on $BRANCH makes $tag."
+          {
+            echo "last=$last"
+            echo "prefix=$next"
+            echo "suffix=$suffix"
+            echo "tag=$tag"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
 
-      # The same build the README describes, stamped with the version, which
-      # the About page reads back from the assembly.
+      # The same build the README describes, stamped with the version. The
+      # About page reads the number; a pre-release's "-dev.N" rides along in
+      # the product version.
       - name: Publish
         run: >
           dotnet publish MikuDo/MikuDo.csproj -c Release -r win-x64
           --self-contained true -p:PublishSingleFile=true
-          -p:Version=${{ steps.version.outputs.version }}
+          -p:VersionPrefix=${{ steps.version.outputs.prefix }}
+          -p:VersionSuffix=${{ steps.version.outputs.suffix }}
           -o publish
 
       # MikuDo.exe needs the native libraries published beside it (WPF's,
@@ -86,18 +105,30 @@ jobs:
       - name: Package
         shell: pwsh
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
           Remove-Item publish/*.pdb, publish/*.xml -ErrorAction SilentlyContinue
-          Compress-Archive -Path publish/* -DestinationPath "MikuDo-v$env:VERSION-win-x64.zip"
+          Compress-Archive -Path publish/* -DestinationPath "MikuDo-$env:TAG-win-x64.zip"
 
+      # A pre-release is marked as one, so the latest full release stays the
+      # one GitHub offers first. A release's notes run from the last full
+      # release, taking in every pre-release since.
       - name: Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          LAST: ${{ steps.version.outputs.last }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
-          gh release create "v$VERSION" "MikuDo-v$VERSION-win-x64.zip" \
+          flags=()
+          if [ "$PRERELEASE" = true ]; then
+            flags+=(--prerelease)
+          elif [ -n "$LAST" ]; then
+            flags+=(--notes-start-tag "$LAST")
+          fi
+          gh release create "$TAG" "MikuDo-$TAG-win-x64.zip" \
             --target "$GITHUB_SHA" \
-            --title "MikuDo $VERSION" \
-            --generate-notes
+            --title "MikuDo ${TAG#v}" \
+            --generate-notes \
+            "${flags[@]}"
