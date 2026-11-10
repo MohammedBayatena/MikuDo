@@ -1177,7 +1177,7 @@ public partial class MainViewModel : ObservableObject
         var snapshots = fresh.Select(t => t.Snapshot()).ToList();
         foreach (var task in fresh)
         {
-            // It changes column, so it lands by date and priority like any card moved by a button.
+            // It changes column, so it lands by priority and age like any card moved by a button.
             task.IsPlaced = false;
             task.Status = TodoStatus.Completed;
             task.CompletedAt = DateTime.UtcNow;

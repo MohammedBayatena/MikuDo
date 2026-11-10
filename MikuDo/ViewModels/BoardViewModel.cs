@@ -88,7 +88,7 @@ public partial class BoardColumnViewModel : ObservableObject
     [ObservableProperty] private bool _isVisible = true;
     [ObservableProperty] private string _inlineTitle = string.Empty;
     [ObservableProperty] private string _inlineDescription = string.Empty;
-    [ObservableProperty] private TodoPriority _inlinePriority = TodoPriority.None;
+    [ObservableProperty] private TodoPriority _inlinePriority = TodoPriority.Low;
 
     /// <summary>Rows for the kanban board; kept current only while that view is up.</summary>
     [ObservableProperty] private ObservableCollection<TaskCardViewModel> _cards = new();
@@ -540,6 +540,8 @@ public partial class BoardViewModel : ObservableObject
             scope = scope.Where(t => kept.Contains(t.IdText)).ToList();
         }
 
+        _positions = ListPositions();
+
         var leaders = new HashSet<TaskCardViewModel>();
         foreach (var column in Columns)
         {
@@ -556,8 +558,8 @@ public partial class BoardViewModel : ObservableObject
                 order = column.SortBy ?? SortBy;
             }
 
-            column.Tasks = TaskOrder.Apply(list.Where(t => t.Status == column.Status), order).ToList();
-            column.Items = TaskOrder.Apply(mine, order).ToList();
+            column.Tasks = TaskOrder.Apply(list.Where(t => t.Status == column.Status), order, _positions).ToList();
+            column.Items = TaskOrder.Apply(mine, order, _positions).ToList();
             column.Count = column.Items.Count;
             column.IsVisible = IsAllTasks || StatusTab == column.Name;
 
@@ -583,7 +585,8 @@ public partial class BoardViewModel : ObservableObject
 
         if (IsTable)
         {
-            _table = TaskOrder.Apply(scope.Where(t => !nested.Contains(t.IdText)), SortBy).ToList();
+            // The table is one list of every task on the board, so a card moved to the top leads it too.
+            _table = TaskOrder.Apply(scope.Where(t => !nested.Contains(t.IdText)), SortBy, TaskOrder.Positions(_source)).ToList();
             var key = PagingKeyFor(SortBy, string.Empty);
             if (key != _tablePagingKey)
             {
@@ -609,6 +612,47 @@ public partial class BoardViewModel : ObservableObject
 
     /// <summary>The cards that lead their list, as the last rebuild found them.</summary>
     private HashSet<TaskCardViewModel> _leaders = new();
+
+    /// <summary>
+    /// Where each of the board's tasks stands in its column's whole list, in
+    /// the board's own order, as the last rebuild found it.
+    /// </summary>
+    private Dictionary<string, int> _positions = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Positions over whole lists, before any search, filter or grouping cuts
+    /// them down, so a placed card's position means the same in every view of
+    /// its list.
+    /// </summary>
+    private Dictionary<string, int> ListPositions()
+    {
+        var positions = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var column in _source.GroupBy(t => t.Status))
+            foreach (var (id, at) in TaskOrder.Positions(column))
+                positions[id] = at;
+        return positions;
+    }
+
+    /// <summary>The whole of one column's list in the board's own order.</summary>
+    private List<TodoItem> WholeList(TodoStatus status)
+        => TaskOrder.Default(_source.Where(t => t.Status == status)).ToList();
+
+    /// <summary>
+    /// Gives each placed card in <paramref name="line"/>, a column's whole list
+    /// as it is to show, its position there. Unplaced cards are left to sort
+    /// themselves around the placed ones. Returns the cards whose position changed.
+    /// </summary>
+    private static List<TodoItem> Pin(List<TodoItem> line)
+    {
+        var changed = new List<TodoItem>();
+        for (var i = 0; i < line.Count; i++)
+        {
+            if (!line[i].IsPlaced || line[i].SortOrder == i) continue;
+            line[i].SortOrder = i;
+            changed.Add(line[i]);
+        }
+        return changed;
+    }
 
     // ── Grouping by parent ──────────────────────────────────────
 
@@ -791,7 +835,7 @@ public partial class BoardViewModel : ObservableObject
 
     /// <summary>
     /// Releases every card on this board from where it was put, so they all
-    /// fall back to date and priority.
+    /// fall back to priority and then age.
     /// </summary>
     [RelayCommand]
     private void ClearManualOrder()
@@ -937,7 +981,7 @@ public partial class BoardViewModel : ObservableObject
             WorkspaceId = source.WorkspaceId,
             Tags = new List<string>(source.Tags),
             SubtaskIds = new List<string>(source.SubtaskIds),
-            // Straight after the original, wherever that was put.
+            // A placed original has its copy placed straight after it; any other copy sorts with the rest.
             SortOrder = source.SortOrder + 1,
             IsPlaced = source.IsPlaced
         };
@@ -1370,11 +1414,11 @@ public partial class BoardViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Puts a card, or the selection it belongs to, at the top of its list,
-    /// ahead of every card placed on the board; a selection keeps its own
-    /// order. The other cards stay where they were put. A list shown in an
-    /// order of its own, such as by priority, goes back to the order cards were
-    /// put in, or the move could not be seen.
+    /// Puts a card, or the selection it belongs to, at the top of its list and
+    /// places it there; a selection keeps its own order. Cards placed lower
+    /// down move down with the cards around them. A list shown in an order of
+    /// its own, such as by priority, goes back to the board's own order, or the
+    /// move could not be seen.
     /// </summary>
     [RelayCommand]
     private void MoveToTop(TaskCardViewModel? card)
@@ -1386,17 +1430,20 @@ public partial class BoardViewModel : ObservableObject
                              .GroupBy(p => p.IdText)
                              .ToDictionary(g => g.Key, g => g.First().i, StringComparer.Ordinal);
         var targets = TargetsFor(card).OrderBy(t => shownAt.GetValueOrDefault(t.IdText, int.MaxValue)).ToList();
-        var snapshots = targets.Select(t => t.Snapshot()).ToList();
+        var lines = targets.Select(t => t.Status).Distinct().ToDictionary(s => s, WholeList);
+        var snapshots = targets.Concat(lines.Values.SelectMany(line => line.Where(t => t.IsPlaced)))
+                               .Distinct().Select(t => t.Snapshot()).ToList();
 
-        var top = _source.Where(t => t.IsPlaced).Select(t => t.SortOrder).DefaultIfEmpty(0).Min();
-        var next = top - 1000 * targets.Count;
-        foreach (var item in targets)
+        var changed = new HashSet<TodoItem>(targets);
+        foreach (var (status, line) in lines)
         {
-            item.SortOrder = next;
-            item.IsPlaced = true;
-            App.Database.UpsertTodo(item);
-            next += 1000;
+            var mine = targets.Where(t => t.Status == status).ToList();
+            line.RemoveAll(mine.Contains);
+            line.InsertRange(0, mine);
+            foreach (var item in mine) item.IsPlaced = true;
+            changed.UnionWith(Pin(line));
         }
+        foreach (var item in changed) App.Database.UpsertTodo(item);
 
         if (IsAllTasks && !IsTable)
         {
@@ -1431,17 +1478,27 @@ public partial class BoardViewModel : ObservableObject
 
     /// <summary>
     /// Drops <paramref name="card"/> into <paramref name="target"/> at
-    /// <paramref name="index"/>, and pins the whole column in the order it now
-    /// shows: an arrangement the user just made is theirs to keep.
+    /// <paramref name="index"/>. Only the moved card is placed: it keeps that
+    /// position in its list, and every other card goes on sorting as it did.
+    /// Dropped where no other card shows, there is nothing to place it
+    /// against, so it sorts with the rest.
     /// </summary>
     public void MoveCard(TaskCardViewModel card, BoardColumnViewModel target, int index)
     {
         var moving = card.Item;
-        var ordered = target.Items.Where(t => !ReferenceEquals(t, moving)).ToList();
-        index = Math.Clamp(index, 0, ordered.Count);
-        ordered.Insert(index, moving);
+        var shown = target.Items.Where(t => !ReferenceEquals(t, moving)).ToList();
+        index = Math.Clamp(index, 0, shown.Count);
 
-        var snapshots = ordered.Select(t => t.Snapshot()).ToList();
+        // Where the drop falls in the whole list, which a search or a filter
+        // can be showing only part of: just above the card it landed on, or
+        // else just below the one above it.
+        var line = WholeList(target.Status);
+        line.Remove(moving);
+        var at = index < shown.Count ? line.IndexOf(shown[index])
+               : index > 0 ? line.IndexOf(shown[index - 1]) + 1
+               : -1;
+
+        var snapshots = line.Where(t => t.IsPlaced).Append(moving).Select(t => t.Snapshot()).ToList();
         var finishing = target.Status == TodoStatus.Completed && moving.Status != TodoStatus.Completed;
 
         if (moving.Status != target.Status)
@@ -1450,12 +1507,14 @@ public partial class BoardViewModel : ObservableObject
             moving.CompletedAt = target.Status == TodoStatus.Completed ? DateTime.UtcNow : null;
         }
 
-        for (var i = 0; i < ordered.Count; i++)
+        var changed = new HashSet<TodoItem> { moving };
+        moving.IsPlaced = at >= 0;
+        if (at >= 0)
         {
-            ordered[i].SortOrder = (i + 1) * 1000;
-            ordered[i].IsPlaced = true;
-            App.Database.UpsertTodo(ordered[i]);
+            line.Insert(at, moving);
+            changed.UnionWith(Pin(line));
         }
+        foreach (var item in changed) App.Database.UpsertTodo(item);
 
         // Dragging is an arrangement, so the list stops following any other order.
         if (target.SortBy != null && target.SortBy != TaskOrder.Manual)
@@ -1557,7 +1616,7 @@ public partial class BoardViewModel : ObservableObject
         foreach (var c in Columns) c.IsAdding = false;
         column.InlineTitle = string.Empty;
         column.InlineDescription = string.Empty;
-        column.InlinePriority = TodoPriority.None;
+        column.InlinePriority = TodoPriority.Low;
         foreach (var label in column.InlineLabels) label.IsChecked = false;
         column.IsAdding = true;
     }

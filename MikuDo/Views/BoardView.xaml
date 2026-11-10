@@ -1107,7 +1107,7 @@
                                         </StackPanel>
                                     </Button>
                                     <Button Style="{StaticResource MenuRowButton}" Command="{Binding ClearManualOrderCommand}"
-                                            ToolTip="Cards you dragged stop holding their place and sort by date, then priority">
+                                            ToolTip="Cards you dragged stop holding their place and sort by priority, then newest first">
                                         <StackPanel Orientation="Horizontal">
                                             <ui:Icon Data="{StaticResource IconUndo}" Size="12" StrokeThickness="1.9"
                                                      Stroke="{DynamicResource TextMutedBrush}"/>

@@ -141,7 +141,7 @@ public partial class TaskDetailViewModel : ObservableObject
     [ObservableProperty] private string _markdown = string.Empty;
     [ObservableProperty] private string _renderedHtml = string.Empty;
     [ObservableProperty] private TodoStatus _status = TodoStatus.Active;
-    [ObservableProperty] private TodoPriority _priority = TodoPriority.None;
+    [ObservableProperty] private TodoPriority _priority = TodoPriority.Low;
     [ObservableProperty] private string _editorMode = "Split";      // Edit | Split | Preview
     [ObservableProperty] private bool _isRecording;
     [ObservableProperty] private string _subtaskQuery = string.Empty;
@@ -338,7 +338,7 @@ public partial class TaskDetailViewModel : ObservableObject
     {
         var status = row.IsDone ? TodoStatus.Completed : TodoStatus.Active;
 
-        // A task changing column lands by date and priority, as one moved on the board does.
+        // A task changing column lands by priority and age, as one moved on the board does.
         if (row.Item.Status != status) row.Item.IsPlaced = false;
         row.Item.Status = status;
         row.Item.CompletedAt = row.IsDone ? DateTime.UtcNow : null;

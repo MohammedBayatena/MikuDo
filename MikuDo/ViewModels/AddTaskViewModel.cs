@@ -24,7 +24,7 @@ public partial class AddTaskViewModel : ObservableObject
     [ObservableProperty] private string _taskName = string.Empty;
     [ObservableProperty] private string _description = string.Empty;
     [ObservableProperty] private string _statusName = "To do";
-    [ObservableProperty] private TodoPriority _priority = TodoPriority.None;
+    [ObservableProperty] private TodoPriority _priority = TodoPriority.Low;
     [ObservableProperty] private string _customLabel = string.Empty;
     [ObservableProperty] private string _subtaskQuery = string.Empty;
     /// <summary>Workspace headings and the tasks under them: the newest matches, up to the picker's limit.</summary>

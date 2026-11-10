@@ -43,23 +43,22 @@ public class DatabaseService : IDisposable
     }
 
     /// <summary>
-    /// Pins every task that exists before placement was recorded. Nothing
-    /// stored says which of those the user dragged and which the app appended,
-    /// so all of them keep the position they already show rather than any of
-    /// them moving on their own. Runs once.
+    /// Releases every task from its place once, so each list sorts by
+    /// priority and then age. A placed card keeps its position in its list,
+    /// and tasks stored without positions carry no record of which ones the
+    /// user dragged, so none of them keeps one. Runs once.
     /// </summary>
     private void MigratePlacement()
     {
-        if (GetSetting("PlacementMigration") == "done") return;
+        if (GetSetting("PlacementPositions") == "done") return;
 
-        foreach (var todo in _todos.FindAll().ToList())
+        foreach (var todo in _todos.Find(x => x.IsPlaced).ToList())
         {
-            if (todo.IsPlaced) continue;
-            todo.IsPlaced = true;
+            todo.IsPlaced = false;
             _todos.Update(todo);
         }
 
-        SaveSetting("PlacementMigration", "done");
+        SaveSetting("PlacementPositions", "done");
     }
 
     /// <summary>

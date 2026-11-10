@@ -10,7 +10,8 @@ public class TodoItem
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
 
-    public TodoPriority Priority { get; set; } = TodoPriority.None;
+    /// <summary>New tasks start at Low.</summary>
+    public TodoPriority Priority { get; set; } = TodoPriority.Low;
     public TodoStatus Status { get; set; } = TodoStatus.Active;
 
     public string? WorkspaceId { get; set; } // null = the default workspace
@@ -40,13 +41,16 @@ public class TodoItem
     /// <summary>The Markdown note this task was made from, if it was; its page links back to it.</summary>
     public string? NotePath { get; set; }
 
-    /// <summary>Position within its board column. Lower sorts first.</summary>
+    /// <summary>
+    /// A placed card's position in its list, 0 at the top. An unplaced card has
+    /// one too, but only as a number the app handed out, and it sorts by
+    /// priority and then age instead.
+    /// </summary>
     public double SortOrder { get; set; }
 
     /// <summary>
-    /// The user put this card where it is, so <see cref="SortOrder"/> is theirs
-    /// to keep. An unplaced card has a <see cref="SortOrder"/> too, but only as
-    /// a slot the app handed out, and it sorts by date and priority instead.
+    /// The user dragged this card to where it is, so it keeps that position,
+    /// <see cref="SortOrder"/>, while the cards around it sort themselves.
     /// </summary>
     public bool IsPlaced { get; set; }
 
