@@ -941,7 +941,19 @@ public partial class BoardViewModel : ObservableObject
         if (card == null) return;
         var open = !card.IsMenuOpen;
         CloseAllMenus();
+        card.RaisePinLabel();
         card.IsMenuOpen = open;
+    }
+
+    public bool IsPinned(TodoItem task) => _main.IsPinned(task.IdText);
+
+    /// <summary>Pins a card to the sidebar's Shortcuts, or unpins it, with the selection it belongs to.</summary>
+    [RelayCommand]
+    private void TogglePinned(TaskCardViewModel? card)
+    {
+        if (card == null) return;
+        _main.SetPinned(TargetsFor(card), !IsPinned(card.Item));
+        CloseAllMenus();
     }
 
     public void CloseAllMenus()

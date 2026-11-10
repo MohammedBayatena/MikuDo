@@ -484,6 +484,9 @@
                                     Visibility="{Binding IsAtTop, Converter={StaticResource Vis}, ConverterParameter=invert}"
                                     Command="{Binding Board.MoveToTopCommand}"
                                     CommandParameter="{Binding}"/>
+                            <Button Style="{StaticResource MenuRowButton}" Content="{Binding PinLabel}"
+                                    Command="{Binding Board.TogglePinnedCommand}"
+                                    CommandParameter="{Binding}"/>
                             <Button Style="{StaticResource MenuRowButton}" Content="{Binding MoveToALabel}"
                                     Command="{Binding Board.MoveCardToStatusCommand}">
                                 <Button.CommandParameter>

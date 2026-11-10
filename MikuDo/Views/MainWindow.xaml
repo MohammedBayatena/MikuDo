@@ -22,6 +22,7 @@
 
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="Vis"/>
+        <conv:BoolToVisibilityConverter x:Key="VisHidden" KeepsRoom="True"/>
         <conv:BoolToOnOffConverter x:Key="BoolOnOff"/>
         <conv:DoneToDecorationsConverter x:Key="Strike"/>
         <conv:EqualsToOnOffConverter x:Key="EqOnOff"/>
@@ -31,6 +32,7 @@
         <conv:SidebarColumnConverter x:Key="SidebarColumn"/>
         <conv:ScaleConverter x:Key="Scale"/>
         <conv:ProductConverter x:Key="Product"/>
+        <conv:ScaledOffsetConverter x:Key="ScaledOffset"/>
 
         <!-- A sidebar section's heading. Clicking it folds the section; a chevron
              shows on hover, and stays while the section is folded. -->
@@ -68,33 +70,141 @@
             </Setter>
         </Style>
 
-        <!-- A workspace as a square, for the folded row of workspaces -->
-        <Style x:Key="WorkspaceSquare" TargetType="Button" BasedOn="{StaticResource BaseButton}">
-            <Setter Property="Width" Value="38"/>
-            <Setter Property="Height" Value="38"/>
-            <Setter Property="Margin" Value="0,0,6,0"/>
+        <!--
+            A page or a workspace as a square with its name under it, for the
+            sidebar's rows of squares. Every column is as wide as the next, in
+            every row, so the squares line up from row to row; a name too long for
+            its column ends in an ellipsis. The icon or text
+            inside takes the button's Foreground.
+        -->
+        <Style x:Key="SquareTile" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="Width" Value="{Binding DataContext.SquareTileWidth, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSoftBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="9" BorderThickness="1" Background="Transparent"
-                                BorderBrush="{DynamicResource BorderSoftBrush}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
+                        <StackPanel Background="Transparent">
+                            <Grid Width="38" Height="38">
+                                <Border x:Name="bd" CornerRadius="9" BorderThickness="1"
+                                        Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}">
+                                    <Grid>
+                                        <!-- Darkens a light wash and lightens a dark one alike, so the colour stays -->
+                                        <Border x:Name="shade" CornerRadius="8" Opacity="0" Background="{DynamicResource TextPrimaryBrush}"/>
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                                <!-- Pinned to SHORTCUTS: a small pin over the top left corner -->
+                                <Border x:Name="pin" Width="15" Height="15" Margin="-5,-5,0,0" CornerRadius="5" BorderThickness="1"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed"
+                                        Background="{DynamicResource TilePinWashBrush}" BorderBrush="{DynamicResource TilePinEdgeBrush}">
+                                    <ui:Icon Data="{StaticResource IconPin}" Size="9" StrokeThickness="2.4"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center" Stroke="{DynamicResource TilePinBrush}"/>
+                                </Border>
+                            </Grid>
+                            <TextBlock x:Name="name" Margin="2,5,2,0" FontSize="10" FontWeight="Medium" TextAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextMutedBrush}"
+                                       Text="{Binding Path=(ui:Caption.Text), RelativeSource={RelativeSource TemplatedParent}}"/>
+                        </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                <Setter TargetName="shade" Property="Opacity" Value="0.07"/>
+                                <Setter TargetName="name" Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
+                                <Setter TargetName="shade" Property="Opacity" Value="0.13"/>
                             </Trigger>
                             <Trigger Property="Tag" Value="on">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
+                                <Setter TargetName="name" Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+                                <Setter TargetName="name" Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <Trigger Property="ui:PinBadge.Shown" Value="True">
+                                <Setter TargetName="pin" Property="Visibility" Value="Visible"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!--
+            A square's colours by what it stands for, from the theme's tile palette:
+            the wash behind the icon, the edge around it, and the icon's own colour
+            as the button's Foreground. Each theme picks them to suit itself.
+        -->
+        <Style x:Key="TileDashboard" TargetType="Button" BasedOn="{StaticResource SquareTile}">
+            <Setter Property="Background" Value="{DynamicResource TileDashboardWashBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TileDashboardEdgeBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TileDashboardBrush}"/>
+        </Style>
+        <Style x:Key="TileVault" TargetType="Button" BasedOn="{StaticResource SquareTile}">
+            <Setter Property="Background" Value="{DynamicResource TileVaultWashBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TileVaultEdgeBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TileVaultBrush}"/>
+        </Style>
+        <Style x:Key="TileTrash" TargetType="Button" BasedOn="{StaticResource SquareTile}">
+            <Setter Property="Background" Value="{DynamicResource TileTrashWashBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TileTrashEdgeBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TileTrashBrush}"/>
+        </Style>
+        <!-- A workspace: the first colour, and the second on every other square along the row -->
+        <Style x:Key="TileWorkspace" TargetType="Button" BasedOn="{StaticResource SquareTile}">
+            <Setter Property="Background" Value="{DynamicResource TileWorkspaceAWashBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TileWorkspaceAEdgeBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TileWorkspaceABrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Path=(ItemsControl.AlternationIndex), RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="1">
+                    <Setter Property="Background" Value="{DynamicResource TileWorkspaceBWashBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource TileWorkspaceBEdgeBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TileWorkspaceBBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="TileTask" TargetType="Button" BasedOn="{StaticResource SquareTile}">
+            <Setter Property="Background" Value="{DynamicResource TileTaskWashBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TileTaskEdgeBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TileTaskBrush}"/>
+        </Style>
+        <Style x:Key="TileNote" TargetType="Button" BasedOn="{StaticResource SquareTile}">
+            <Setter Property="Background" Value="{DynamicResource TileNoteWashBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TileNoteEdgeBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TileNoteBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMissing}" Value="True">
+                    <Setter Property="Opacity" Value="0.5"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="TileFolder" TargetType="Button" BasedOn="{StaticResource SquareTile}">
+            <Setter Property="Background" Value="{DynamicResource TileFolderWashBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TileFolderEdgeBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TileFolderBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMissing}" Value="True">
+                    <Setter Property="Opacity" Value="0.5"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Something under SHORTCUTS: a task's colours, or a note's -->
+        <Style x:Key="TileShortcut" TargetType="Button" BasedOn="{StaticResource TileTask}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Kind}" Value="note">
+                    <Setter Property="Background" Value="{DynamicResource TileNoteWashBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource TileNoteEdgeBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TileNoteBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The icon on a square: its outline in the square's colour, filled with the square's edge -->
+        <Style x:Key="TileGlyph" TargetType="ui:Icon">
+            <Setter Property="Size" Value="16"/>
+            <Setter Property="StrokeThickness" Value="1.9"/>
+            <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+            <Setter Property="Fill" Value="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=Button}}"/>
         </Style>
 
         <!-- A small word that acts, quiet until pointed at: Clear on the Recent row -->
@@ -359,6 +469,551 @@
             </Style.Triggers>
         </Style>
 
+        <!--
+            An empty place in a row of squares: dashed, with what belongs there
+            named under it, as Recent with nothing opened lately. Its tooltip
+            says how it fills. The icon inside is the content.
+        -->
+        <Style x:Key="SquarePlaceholder" TargetType="ContentControl">
+            <Setter Property="Width" Value="{Binding DataContext.SquareTileWidth, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContentControl">
+                        <StackPanel Background="Transparent">
+                            <Grid Width="38" Height="38">
+                                <Rectangle RadiusX="9" RadiusY="9" StrokeThickness="1" StrokeDashArray="4 3"
+                                           Stroke="{DynamicResource DashBorderBrush}"/>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                            <TextBlock Margin="2,5,2,0" FontSize="10" FontWeight="Medium" TextAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFaintBrush}"
+                                       Text="{Binding Path=(ui:Caption.Text), RelativeSource={RelativeSource TemplatedParent}}"/>
+                        </StackPanel>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            Recent, inside SHORTCUTS' list, drawn as Recent under NOTES is: a
+            chevron that folds the tasks under it, the clock and the name, and
+            Clear while the row is pointed at. Tag is "on" while it is open.
+        -->
+        <Style x:Key="ShortcutGroupRow" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="8" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <DockPanel>
+                                <ui:Icon x:Name="chevron" DockPanel.Dock="Left" Margin="0,0,6,0" Data="{StaticResource IconChevronRight}" Size="12"
+                                         StrokeThickness="2.6" Stroke="{TemplateBinding Foreground}"/>
+                                <ContentPresenter/>
+                            </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Tag" Value="on">
+                                <Setter TargetName="chevron" Property="Data" Value="{StaticResource IconChevronDown}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Clear on Recent in SHORTCUTS: only while the row is pointed at and has something to clear -->
+        <Style x:Key="ShortcutClear" TargetType="Button" BasedOn="{StaticResource QuietWordButton}">
+            <Setter Property="DockPanel.Dock" Value="Right"/>
+            <Setter Property="Margin" Value="6,-2,-4,-2"/>
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Border}}" Value="True"/>
+                        <Condition Binding="{Binding IsEnabled, RelativeSource={RelativeSource Self}}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Visibility" Value="Visible"/>
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!--
+            A task in SHORTCUTS' list, drawn as a note is in the NOTES list: the
+            task icon, blue as on its square, and the title. A pinned task stands
+            at the top, its icon lined up with those past the folders' chevrons;
+            one under Recent sits a step in, on its guide line. A recent one offers
+            to pin itself and a pinned one to unpin, while pointed at. Marked
+            while its page is on screen; a done one is quieter.
+        -->
+        <Style x:Key="ShortcutRow" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Padding" Value="25,5,8,5"/>
+            <Setter Property="ToolTipService.InitialShowDelay" Value="600"/>
+            <Setter Property="ToolTip" Value="{Binding Tip}"/>
+            <Setter Property="Command" Value="{Binding DataContext.OpenShortcutCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Setter Property="CommandParameter" Value="{Binding}"/>
+            <EventSetter Event="ContextMenuOpening" Handler="Shortcut_ContextMenuOpening"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <ui:TreeGuides x:Name="guides" Depth="1" Stroke="{DynamicResource DividerBrush}" Visibility="Collapsed"/>
+                            <Border x:Name="bd" CornerRadius="7" Background="Transparent" Padding="{TemplateBinding Padding}">
+                                <DockPanel>
+                                    <ui:Icon x:Name="icon" DockPanel.Dock="Left" Data="{StaticResource IconTask}" Size="13" StrokeThickness="1.9"
+                                             Stroke="{DynamicResource TileTaskBrush}" Fill="{DynamicResource TileTaskEdgeBrush}"/>
+                                    <Button x:Name="pin" DockPanel.Dock="Right" Style="{StaticResource IconButton}"
+                                            Width="20" Height="20" Margin="4,-2,-4,-2" Visibility="Collapsed" ToolTip="Unpin from Shortcuts"
+                                            Command="{Binding DataContext.UnpinShortcutCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}">
+                                        <ui:Icon x:Name="pinIcon" Data="{StaticResource IconClose}" Size="10" StrokeThickness="2.1"
+                                                 Stroke="{DynamicResource TextFaintBrush}"/>
+                                    </Button>
+                                    <TextBlock x:Name="name" Text="{Binding Title}" Margin="7,0,0,0" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DockPanel>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <!-- Under Recent: a step in, on the guide line -->
+                            <DataTrigger Binding="{Binding IsPinned}" Value="False">
+                                <Setter TargetName="guides" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="bd" Property="Margin" Value="24,0,0,1"/>
+                                <Setter TargetName="bd" Property="Padding" Value="8,5"/>
+                                <Setter TargetName="pin" Property="ToolTip" Value="Pin to Shortcuts"/>
+                                <Setter TargetName="pin" Property="Command"
+                                        Value="{Binding DataContext.PinShortcutCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Setter TargetName="pinIcon" Property="Data" Value="{StaticResource IconPin}"/>
+                                <Setter TargetName="pinIcon" Property="Size" Value="12"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource TextFaintBrush}"/>
+                                <Setter TargetName="icon" Property="Opacity" Value="0.6"/>
+                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                <Setter TargetName="pin" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            A note in SHORTCUTS' list, drawn as a note is in the NOTES list and
+            placed as a task is beside it: a pinned one at the top, one opened
+            lately a step in under Recent. Its icon is cyan, as its square's is.
+            Dimmed and crossed out once its file is gone.
+        -->
+        <Style x:Key="ShortcutNoteRowStyle" TargetType="Button" BasedOn="{StaticResource ShortcutRow}">
+            <Setter Property="ToolTip" Value="{Binding Path}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <ui:TreeGuides x:Name="guides" Depth="1" Stroke="{DynamicResource DividerBrush}" Visibility="Collapsed"/>
+                            <Border x:Name="bd" CornerRadius="7" Background="Transparent" Padding="{TemplateBinding Padding}">
+                                <DockPanel>
+                                    <ui:Icon DockPanel.Dock="Left" Data="{StaticResource IconNoteSmall}" Size="13" StrokeThickness="1.9"
+                                             Stroke="{DynamicResource TileNoteBrush}" Fill="{DynamicResource TileNoteEdgeBrush}"/>
+                                    <Button x:Name="pin" DockPanel.Dock="Right" Style="{StaticResource IconButton}"
+                                            Width="20" Height="20" Margin="4,-2,-4,-2" Visibility="Collapsed" ToolTip="Unpin from Shortcuts"
+                                            Command="{Binding DataContext.UnpinShortcutCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}">
+                                        <ui:Icon x:Name="pinIcon" Data="{StaticResource IconClose}" Size="10" StrokeThickness="2.1"
+                                                 Stroke="{DynamicResource TextFaintBrush}"/>
+                                    </Button>
+                                    <TextBlock x:Name="name" Text="{Binding Name}" Margin="7,0,0,0" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DockPanel>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsPinned}" Value="False">
+                                <Setter TargetName="guides" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="bd" Property="Margin" Value="24,0,0,1"/>
+                                <Setter TargetName="bd" Property="Padding" Value="8,5"/>
+                                <Setter TargetName="pin" Property="ToolTip" Value="Pin to Shortcuts"/>
+                                <Setter TargetName="pin" Property="Command"
+                                        Value="{Binding DataContext.PinShortcutCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Setter TargetName="pinIcon" Property="Data" Value="{StaticResource IconPin}"/>
+                                <Setter TargetName="pinIcon" Property="Size" Value="12"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsMissing}" Value="True">
+                                <Setter TargetName="name" Property="TextDecorations" Value="Strikethrough"/>
+                                <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
+                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                <Setter TargetName="pin" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            The preview card of a square in the sidebar, just under it while the
+            pointer rests on the square: the few things worth knowing before
+            opening it, and for a folder a way to open it in Explorer.
+
+            Every card is laid out the same way and keeps its size whatever it
+            shows: a tinted head with the thing's icon on an accent tile, its
+            name over up to two lines and one fact under it; then a body whose
+            parts each keep their room, long text ending in an ellipsis.
+        -->
+        <Style x:Key="PreviewCard" TargetType="ContentControl">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="LayoutTransform" Value="{Binding AppTransform, Source={x:Static ui:Display.Current}}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContentControl">
+                        <Grid Margin="8">
+                            <ui:SoftShadow CornerRadius="12" BlurRadius="22" ShadowDepth="8" ShadowOpacity="0.16"
+                                           Color="{DynamicResource ShadowColor}"/>
+                            <Border Width="272" CornerRadius="12" BorderThickness="1"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderSoftBrush}">
+                                <ContentPresenter TextBlock.FontFamily="{StaticResource AppFont}" TextBlock.FontSize="11.5"
+                                                  TextBlock.Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsVisible, RelativeSource={RelativeSource Self}}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard Storyboard="{StaticResource PopoverIn}"/>
+                    </DataTrigger.EnterActions>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The tinted head of a preview card, the same height on every card, what it holds in its middle -->
+        <Style x:Key="PreviewHead" TargetType="Border">
+            <Setter Property="Height" Value="74"/>
+            <Setter Property="CornerRadius" Value="11,11,0,0"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerSoftBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        </Style>
+
+        <!-- The thing's icon on a small accent tile, at the start of a preview's head -->
+        <Style x:Key="PreviewBadge" TargetType="Border">
+            <Setter Property="DockPanel.Dock" Value="Left"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="Margin" Value="0,0,11,0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- A preview's name: up to two lines, then an ellipsis -->
+        <Style x:Key="PreviewTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LineHeight" Value="17"/>
+            <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="MaxHeight" Value="34"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <!-- A quiet fact on one line -->
+        <Style x:Key="PreviewFact" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFaintBrush}"/>
+        </Style>
+
+        <!-- A small icon at the start of a fact -->
+        <Style x:Key="PreviewFactIcon" TargetType="ui:Icon">
+            <Setter Property="DockPanel.Dock" Value="Left"/>
+            <Setter Property="Size" Value="12"/>
+            <Setter Property="StrokeThickness" Value="2"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Stroke" Value="{DynamicResource TextGhostBrush}"/>
+        </Style>
+
+        <!-- An action at the foot of a preview card: a small outlined button -->
+        <Style x:Key="PreviewAction" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="7" BorderThickness="1" Padding="10,5"
+                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="TaskPreview">
+            <StackPanel>
+                <Border Style="{StaticResource PreviewHead}">
+                    <DockPanel VerticalAlignment="Center">
+                        <Border Style="{StaticResource PreviewBadge}" Background="{DynamicResource TileTaskWashBrush}" BorderBrush="{DynamicResource TileTaskEdgeBrush}">
+                            <ui:Icon Data="{StaticResource IconTask}" Size="16" StrokeThickness="1.9" Stroke="{DynamicResource TileTaskBrush}" Fill="{DynamicResource TileTaskEdgeBrush}"/>
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Title}" Style="{StaticResource PreviewTitle}"/>
+                            <DockPanel Margin="0,4,0,0">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0"
+                                            Visibility="{Binding HasPriority, Converter={StaticResource Vis}}">
+                                    <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding PriorityBrush}"/>
+                                    <TextBlock Text="{Binding Item.Priority}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                               Foreground="{Binding PriorityBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding Where}" Style="{StaticResource PreviewFact}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <Grid Margin="14,11,14,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="48"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="{Binding Excerpt}" FontSize="11.5" LineHeight="16" LineStackingStrategy="BlockLineHeight"
+                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding HasExcerpt, Converter={StaticResource Vis}}"/>
+                    <TextBlock Text="No description" FontSize="11.5" FontStyle="Italic" Foreground="{DynamicResource TextGhostBrush}"
+                               Visibility="{Binding HasExcerpt, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                    <DockPanel Grid.Row="1" Margin="0,10,0,0" LastChildFill="False">
+                        <ui:Icon Style="{StaticResource PreviewFactIcon}" Data="{StaticResource IconClock}"/>
+                        <TextBlock DockPanel.Dock="Left" Style="{StaticResource PreviewFact}">
+                            <Run Text="Created"/> <Run Text="{Binding CreatedShort, Mode=OneWay}" Foreground="{DynamicResource TextMutedBrush}"/>
+                        </TextBlock>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                    Visibility="{Binding HasEdited, Converter={StaticResource Vis}}">
+                            <ui:Icon Style="{StaticResource PreviewFactIcon}" Data="{StaticResource IconPencil}"/>
+                            <TextBlock Style="{StaticResource PreviewFact}">
+                                <Run Text="Edited"/> <Run Text="{Binding EditedShort, Mode=OneWay}" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </TextBlock>
+                        </StackPanel>
+                    </DockPanel>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="NotePreview">
+            <StackPanel>
+                <Border Style="{StaticResource PreviewHead}">
+                    <DockPanel VerticalAlignment="Center">
+                        <Border Style="{StaticResource PreviewBadge}" Background="{DynamicResource TileNoteWashBrush}" BorderBrush="{DynamicResource TileNoteEdgeBrush}">
+                            <ui:Icon Data="{StaticResource IconNote}" Size="16" StrokeThickness="1.9" Stroke="{DynamicResource TileNoteBrush}" Fill="{DynamicResource TileNoteEdgeBrush}"/>
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Name}" Style="{StaticResource PreviewTitle}"/>
+                            <TextBlock Text="{Binding FolderName}" Style="{StaticResource PreviewFact}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <StackPanel Margin="14,11,14,12">
+                    <DockPanel>
+                        <ui:Icon Style="{StaticResource PreviewFactIcon}" Data="{StaticResource IconFolder}"/>
+                        <TextBlock Text="{Binding Location}" Style="{StaticResource PreviewFact}"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,7,0,0">
+                        <ui:Icon Style="{StaticResource PreviewFactIcon}" Data="{StaticResource IconClock}"/>
+                        <TextBlock Text="{Binding Changed}" Style="{StaticResource PreviewFact}"/>
+                    </DockPanel>
+                    <!-- Kept in its place either way, so the card is the same height -->
+                    <DockPanel Margin="0,7,0,0" Visibility="{Binding IsInWindow, Converter={StaticResource VisHidden}}">
+                        <ui:Icon Style="{StaticResource PreviewFactIcon}" Data="{StaticResource IconPopOut}" Stroke="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="Open in a reader window" Style="{StaticResource PreviewFact}" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentDarkBrush}"/>
+                    </DockPanel>
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="FolderPreview">
+            <StackPanel>
+                <Border Style="{StaticResource PreviewHead}">
+                    <DockPanel VerticalAlignment="Center">
+                        <Border Style="{StaticResource PreviewBadge}" Background="{DynamicResource TileFolderWashBrush}" BorderBrush="{DynamicResource TileFolderEdgeBrush}">
+                            <ui:Icon Data="{StaticResource IconFolder}" Size="16" StrokeThickness="1.9" Stroke="{DynamicResource TileFolderBrush}" Fill="{DynamicResource TileFolderEdgeBrush}"/>
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Name}" Style="{StaticResource PreviewTitle}"/>
+                            <TextBlock Text="{Binding CountText}" Style="{StaticResource PreviewFact}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <StackPanel Margin="14,11,14,12">
+                    <DockPanel>
+                        <ui:Icon Style="{StaticResource PreviewFactIcon}" Data="{StaticResource IconFolder}"/>
+                        <TextBlock Text="{Binding Path}" Style="{StaticResource PreviewFact}"/>
+                    </DockPanel>
+                    <Button Style="{StaticResource PreviewAction}" Margin="0,10,0,0" HorizontalAlignment="Right"
+                            Click="PreviewOpenFolder_Click" ToolTip="Open this folder in File Explorer">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Icon Data="{StaticResource IconPopOut}" Size="11" StrokeThickness="2.1" VerticalAlignment="Center"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <TextBlock Text="Open in Explorer" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- A figure over its name, one of three across a workspace's card -->
+        <Style x:Key="PreviewFigure" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <DataTemplate x:Key="WorkspacePreview">
+            <StackPanel>
+                <Border Style="{StaticResource PreviewHead}">
+                    <DockPanel VerticalAlignment="Center">
+                        <Border Style="{StaticResource PreviewBadge}" Background="{DynamicResource TileWorkspaceAWashBrush}" BorderBrush="{DynamicResource TileWorkspaceAEdgeBrush}">
+                            <ui:Icon Data="{StaticResource IconWorkspace}" Size="16" StrokeThickness="1.9" Stroke="{DynamicResource TileWorkspaceABrush}" Fill="{DynamicResource TileWorkspaceAEdgeBrush}"/>
+                        </Border>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Name}" Style="{StaticResource PreviewTitle}"/>
+                            <TextBlock Text="{Binding ChangedText}" Style="{StaticResource PreviewFact}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <UniformGrid Columns="3" Margin="14,11,14,12">
+                    <StackPanel>
+                        <TextBlock Text="{Binding ToDoCount}" Style="{StaticResource PreviewFigure}"/>
+                        <TextBlock Text="To do" Style="{StaticResource PreviewFact}" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="{Binding DoingCount}" Style="{StaticResource PreviewFigure}"/>
+                        <TextBlock Text="Doing" Style="{StaticResource PreviewFact}" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="{Binding DoneCount}" Style="{StaticResource PreviewFigure}"/>
+                        <TextBlock Text="Done" Style="{StaticResource PreviewFact}" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </UniformGrid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!--
+            A Recent bar's foot: the square pointed at, by its whole name and one
+            line about it. Two lines, always, so the bar keeps its size.
+        -->
+        <DataTemplate x:Key="NoteBarDetail">
+            <StackPanel>
+                <TextBlock Text="{Binding Name}" FontSize="11.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <DockPanel Margin="0,4,0,0">
+                    <ui:Icon Style="{StaticResource PreviewFactIcon}" Data="{StaticResource IconClock}"/>
+                    <TextBlock Style="{StaticResource PreviewFact}">
+                        <Run Text="{Binding FolderName, Mode=OneWay}"/> <Run Text="·"/> <Run Text="{Binding Changed, Mode=OneWay}"/>
+                    </TextBlock>
+                </DockPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="TaskBarDetail">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontSize="11.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <DockPanel Margin="0,4,0,0">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0"
+                                Visibility="{Binding HasPriority, Converter={StaticResource Vis}}">
+                        <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{Binding PriorityBrush}"/>
+                        <TextBlock Text="{Binding Item.Priority}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Foreground="{Binding PriorityBrush}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Where}" Style="{StaticResource PreviewFact}"/>
+                </DockPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- The tinted head of a Recent bar: its name, and how many it holds -->
+        <Style x:Key="RecentBarHead" TargetType="Border">
+            <Setter Property="CornerRadius" Value="9,9,0,0"/>
+            <Setter Property="Padding" Value="14,8,14,8"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerSoftBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        </Style>
+
+        <!-- The foot of a Recent bar, the same height whatever it tells -->
+        <Style x:Key="RecentBarFoot" TargetType="Border">
+            <Setter Property="Height" Value="56"/>
+            <Setter Property="Padding" Value="14,10,14,0"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerSoftBrush}"/>
+            <Setter Property="BorderThickness" Value="0,1,0,0"/>
+        </Style>
+
+        <!--
+            The line between two squares in the bar over a Recent square; the
+            first square has none before it.
+        -->
+        <Style x:Key="RecentBarDivider" TargetType="Border">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Margin" Value="0,6,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="Background" Value="{DynamicResource DividerSoftBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Path=(ItemsControl.AlternationIndex), RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="0">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- After the first notes of a folder holding a great many: the next batch -->
         <Style x:Key="NoteTreeMore" TargetType="Button" BasedOn="{StaticResource NoteTreeRow}">
             <Setter Property="Foreground" Value="{DynamicResource AccentDarkBrush}"/>
@@ -527,9 +1182,10 @@
             </Border>
         </Grid>
 
-        <!-- Window controls live in the canvas margin, outside the app card -->
+        <!-- Window controls live in the canvas margin, outside the app card: the full
+             height of the title bar, flush with the window's top right corner -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
-                    Margin="0,9,12,0" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    Height="44" shell:WindowChrome.IsHitTestVisibleInChrome="True">
             <!-- While notes are open in reader windows: how many, and a list to switch to one -->
             <Button x:Name="WindowsButton" Style="{StaticResource WindowListButton}" Margin="0,0,8,0" Click="Windows_Click"
                     Visibility="{Binding Any, Source={x:Static views:OpenReaders.Current}, Converter={StaticResource Vis}}"
@@ -571,10 +1227,10 @@
 
         <!-- ═══ App card ═══ -->
         <Border x:Name="AppCard" Margin="8,44,8,8" CornerRadius="10" Background="{DynamicResource SurfaceBrush}"
-                SnapsToDevicePixels="True">
+                BorderBrush="{DynamicResource DividerBrush}" SnapsToDevicePixels="True">
             <Border x:Name="AppCardClip" CornerRadius="10" ui:RoundedClip.Radius="10"
                     Background="{DynamicResource SurfaceBrush}">
-                <Grid>
+                <Grid x:Name="CardGrid" PreviewMouseMove="CardGrid_PreviewMouseMove" MouseLeave="CardGrid_MouseLeave">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition>
                             <ColumnDefinition.Width>
@@ -596,15 +1252,40 @@
 
 
 
-                            <!-- The menu's heading, with the button that folds the sidebar away -->
-                            <Grid DockPanel.Dock="Top" Margin="8,0,4,8">
+                            <!--
+                                The menu's heading, with a button at the end that shows Dashboard,
+                                Vault and Trash as squares or as a list, in line with the same
+                                button on WORKSPACE
+                            -->
+                            <Grid DockPanel.Dock="Top" Margin="8,0,0,8">
                                 <TextBlock Text="MAIN MENU" Style="{StaticResource SectionLabel}" VerticalAlignment="Center"/>
-                                <Button Style="{StaticResource OutlinedIconButton}" Width="26" Height="26"
-                                        HorizontalAlignment="Right" VerticalAlignment="Center" ToolTip="{Binding [window.sidebar], Source={x:Static svc:ShortcutText.InParens}, StringFormat='Hide the sidebar{0}'}"
-                                        Command="{Binding ToggleSidebarCommand}">
-                                    <ui:Icon Data="{StaticResource IconChevronLeft}" Size="12" StrokeThickness="2.4"
-                                             Stroke="{DynamicResource TextSecondaryBrush}"/>
-                                </Button>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Button Width="22" Height="22" VerticalAlignment="Center"
+                                            Command="{Binding TogglePagesCompactCommand}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                                <Setter Property="ToolTip" Value="Show Dashboard, Vault and Trash as squares"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsPagesCompact}" Value="True">
+                                                        <Setter Property="ToolTip" Value="Show Dashboard, Vault and Trash as a list"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <ui:Icon Size="13" StrokeThickness="2" Stroke="{DynamicResource TextFaintBrush}">
+                                            <ui:Icon.Style>
+                                                <Style TargetType="ui:Icon">
+                                                    <Setter Property="Data" Value="{StaticResource IconSquares}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPagesCompact}" Value="True">
+                                                            <Setter Property="Data" Value="{StaticResource IconList}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ui:Icon.Style>
+                                        </ui:Icon>
+                                    </Button>
+                                </StackPanel>
                             </Grid>
 
                             <!-- Bottom rail pinned below -->
@@ -769,8 +1450,13 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Scrollable middle -->
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="-14,0,0,0" Padding="14,0,0,0">
+                            <!--
+                                Scrollable middle. Its scroll bar runs in the sidebar's right-hand
+                                padding, over nothing, so showing it never narrows the menu: the
+                                buttons at the ends of the headings stay in one column, in line
+                                with the one on MAIN MENU above.
+                            -->
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="-14,0,-14,0" Padding="14,0,14,0">
                                 <ScrollViewer.Resources>
                                     <!-- WPF's own scroll bar style sets a MinWidth of the system scroll bar
                                          width (17px), which outranks the app style's 4px Width -->
@@ -778,40 +1464,79 @@
                                         <Setter Property="MinWidth" Value="0"/>
                                     </Style>
                                 </ScrollViewer.Resources>
+                                <ScrollViewer.Template>
+                                    <ControlTemplate TargetType="ScrollViewer">
+                                        <Grid Background="{TemplateBinding Background}">
+                                            <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Margin="{TemplateBinding Padding}"
+                                                                    CanContentScroll="{TemplateBinding CanContentScroll}"
+                                                                    CanHorizontallyScroll="False" CanVerticallyScroll="False"/>
+                                            <ScrollBar x:Name="PART_VerticalScrollBar" HorizontalAlignment="Right" Margin="0,0,5,0"
+                                                       Minimum="0" Maximum="{TemplateBinding ScrollableHeight}"
+                                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                                       Value="{Binding VerticalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </ScrollViewer.Template>
                                 <StackPanel>
 
-                                    <Button Style="{StaticResource NavButton}" Command="{Binding NavigateToDashboardCommand}"
-                                            Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Dashboard}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <ui:Icon Data="{StaticResource IconDashboard}" Size="17"
-                                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                            <TextBlock Text="Dashboard" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="13"
-                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                       FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                        </StackPanel>
-                                    </Button>
+                                    <!-- Dashboard, Vault and Trash as a list; right-click to show them as squares -->
+                                    <StackPanel Background="Transparent" ContextMenuOpening="Pages_ContextMenuOpening"
+                                                Visibility="{Binding IsPagesCompact, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                                        <Button Style="{StaticResource NavButton}" Command="{Binding NavigateToDashboardCommand}"
+                                                Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Dashboard}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Icon Data="{StaticResource IconDashboard}" Size="17"
+                                                         Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                <TextBlock Text="Dashboard" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="13"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                           FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                            </StackPanel>
+                                        </Button>
 
-                                    <Button Style="{StaticResource NavButton}" Command="{Binding NavigateToVaultCommand}"
-                                            Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Vault}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <ui:Icon Data="{StaticResource IconVault}" Size="17"
-                                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                            <TextBlock Text="Vault" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="13"
-                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                       FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                        </StackPanel>
-                                    </Button>
+                                        <Button Style="{StaticResource NavButton}" Command="{Binding NavigateToVaultCommand}"
+                                                Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Vault}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Icon Data="{StaticResource IconVault}" Size="17"
+                                                         Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                <TextBlock Text="Vault" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="13"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                           FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                            </StackPanel>
+                                        </Button>
 
-                                    <Button Style="{StaticResource NavButton}" Command="{Binding NavigateToTrashCommand}"
-                                            Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Trash}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <ui:Icon Data="{StaticResource IconTrash}" Size="17"
-                                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                            <TextBlock Text="Trash" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="13"
-                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                       FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                        </StackPanel>
-                                    </Button>
+                                        <Button Style="{StaticResource NavButton}" Command="{Binding NavigateToTrashCommand}"
+                                                Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Trash}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Icon Data="{StaticResource IconTrash}" Size="17"
+                                                         Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                <TextBlock Text="Trash" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="13"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                           FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+
+                                    <!-- The same three folded to a row of squares, each named under it -->
+                                    <StackPanel Orientation="Horizontal" Margin="-1,2,0,0" Background="Transparent"
+                                                ContextMenuOpening="Pages_ContextMenuOpening"
+                                                Visibility="{Binding IsPagesCompact, Converter={StaticResource Vis}}">
+                                        <Button Style="{StaticResource TileDashboard}" ui:Caption.Text="Dashboard" ToolTip="Dashboard"
+                                                Command="{Binding NavigateToDashboardCommand}"
+                                                Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Dashboard}">
+                                            <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconDashboard}"/>
+                                        </Button>
+                                        <Button Style="{StaticResource TileVault}" ui:Caption.Text="Vault" ToolTip="Vault"
+                                                Command="{Binding NavigateToVaultCommand}"
+                                                Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Vault}">
+                                            <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconVault}"/>
+                                        </Button>
+                                        <Button Style="{StaticResource TileTrash}" ui:Caption.Text="Trash" ToolTip="Trash"
+                                                Command="{Binding NavigateToTrashCommand}"
+                                                Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Trash}">
+                                            <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconTrash}"/>
+                                        </Button>
+                                    </StackPanel>
 
                                     <!-- Workspaces: the heading folds them away; the button beside it shows them as a row of squares -->
                                     <DockPanel Margin="0,16,0,6" LastChildFill="False" Background="Transparent"
@@ -846,10 +1571,11 @@
                                         </Button>
                                     </DockPanel>
 
-                                    <!-- Folded to a row: as many squares as fit, the last one counting the rest -->
-                                    <StackPanel Orientation="Horizontal" Margin="2,0,0,4"
+                                    <!-- Folded to a row: as many squares as fit, each named under it, the last one counting the rest -->
+                                    <StackPanel Orientation="Horizontal" Margin="-1,0,0,4"
                                                 Visibility="{Binding ShowWorkspaceSquares, Converter={StaticResource Vis}}">
-                                        <ItemsControl ItemsSource="{Binding WorkspaceSquares}" Focusable="False">
+                                        <!-- Every other square's icon takes the second colour -->
+                                        <ItemsControl ItemsSource="{Binding WorkspaceSquares}" Focusable="False" AlternationCount="2">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <StackPanel Orientation="Horizontal"/>
@@ -857,33 +1583,21 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Button Style="{StaticResource WorkspaceSquare}" ToolTip="{Binding Name}"
-                                                            AllowDrop="True" DragOver="Workspace_DragOver" Drop="Workspace_Drop"
+                                                    <Button Style="{StaticResource TileWorkspace}" ui:Caption.Text="{Binding Name}"
+                                                            AllowDrop="True" DragOver="Workspace_DragOver" Drop="Workspace_Drop" ui:Preview.Template="{StaticResource WorkspacePreview}" MouseEnter="Preview_MouseEnter" MouseLeave="Preview_MouseLeave"
                                                             Command="{Binding DataContext.NavigateToWorkspaceCommand,
                                                                       RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
                                                             Tag="{Binding IsActive, Converter={StaticResource BoolOnOff}}">
-                                                        <ui:Icon Data="{StaticResource IconWorkspace}" Size="16">
-                                                            <ui:Icon.Style>
-                                                                <Style TargetType="ui:Icon">
-                                                                    <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </ui:Icon.Style>
-                                                        </ui:Icon>
+                                                        <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconWorkspace}"/>
                                                     </Button>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <Button Style="{StaticResource WorkspaceSquare}" Command="{Binding ShowAllWorkspacesCommand}"
-                                                ToolTip="Show every workspace"
+                                        <Button Style="{StaticResource SquareTile}" Command="{Binding ShowAllWorkspacesCommand}"
+                                                ui:Caption.Text="More" ToolTip="Show every workspace"
                                                 Visibility="{Binding HasMoreWorkspaces, Converter={StaticResource Vis}}">
-                                            <TextBlock Text="{Binding MoreWorkspaces, StringFormat='+{0}'}" FontSize="12" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding MoreWorkspaces, StringFormat='+{0}'}" FontSize="12" FontWeight="SemiBold"/>
                                         </Button>
                                     </StackPanel>
 
@@ -1001,18 +1715,347 @@
                                         </StackPanel>
                                     </StackPanel>
 
-                                    <!-- Notes: Markdown files opened in MikuDo, newest first -->
-                                    <DockPanel Margin="0,14,0,4" LastChildFill="False">
+                                    <!--
+                                        Shortcuts: the task opened last, then a divider, then the tasks
+                                        pinned here. Squares unless asked for the list; right-click a
+                                        task anywhere to pin it.
+                                    -->
+                                    <DockPanel Margin="0,14,0,6" LastChildFill="False" Background="Transparent"
+                                               ContextMenuOpening="ShortcutsHeader_ContextMenuOpening">
+                                        <Button DockPanel.Dock="Left" Style="{StaticResource SectionHeader}" Content="SHORTCUTS"
+                                                Command="{Binding ToggleShortcutsSectionCommand}"
+                                                Tag="{Binding IsShortcutsOpen, Converter={StaticResource BoolOnOff}}"/>
+                                        <Button DockPanel.Dock="Right" Width="22" Height="22" Command="{Binding ToggleShortcutsCompactCommand}"
+                                                Visibility="{Binding IsShortcutsOpen, Converter={StaticResource Vis}}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                                    <Setter Property="ToolTip" Value="Show as a list"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsShortcutsCompact}" Value="False">
+                                                            <Setter Property="ToolTip" Value="Show as squares"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <ui:Icon Size="13" StrokeThickness="2" Stroke="{DynamicResource TextFaintBrush}">
+                                                <ui:Icon.Style>
+                                                    <Style TargetType="ui:Icon">
+                                                        <Setter Property="Data" Value="{StaticResource IconList}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsShortcutsCompact}" Value="False">
+                                                                <Setter Property="Data" Value="{StaticResource IconSquares}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ui:Icon.Style>
+                                            </ui:Icon>
+                                        </Button>
+                                    </DockPanel>
+
+                                    <!--
+                                        As squares: Recent first, a divider, then as many pins as fit, More
+                                        holding the rest. Recent is what was opened last, task or note; resting
+                                        on it shows the others opened lately in a bar under it. Each square
+                                        shows what it is, a task or a note, and a pinned one wears a small pin.
+                                    -->
+                                    <StackPanel Orientation="Horizontal" Margin="-1,0,0,4"
+                                                Visibility="{Binding ShowShortcutSquares, Converter={StaticResource Vis}}">
+                                        <StackPanel.Resources>
+                                            <!-- The icon of a shortcut: a task's, or a note's; its square gives the colours -->
+                                            <DataTemplate DataType="{x:Type vm:ShortcutTask}">
+                                                <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconTask}"/>
+                                            </DataTemplate>
+                                            <DataTemplate DataType="{x:Type vm:ShortcutNoteRow}">
+                                                <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconNote}"/>
+                                            </DataTemplate>
+                                        </StackPanel.Resources>
+                                        <Grid>
+                                            <Button x:Name="ShortcutsRecentSquare" Style="{StaticResource TileShortcut}" DataContext="{Binding RecentShortcut}"
+                                                    ui:Caption.Text="{Binding Title}"
+                                                    Command="{Binding DataContext.OpenShortcutCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}" ContextMenuOpening="Shortcut_ContextMenuOpening"
+                                                    Tag="{Binding IsActive, Converter={StaticResource BoolOnOff}}"
+                                                    Visibility="{Binding DataContext.HasRecentShortcut, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Vis}}">
+                                                <ContentControl Content="{Binding}" Focusable="False"/>
+                                            </Button>
+                                            <ContentControl Style="{StaticResource SquarePlaceholder}" ui:Caption.Text="Recent"
+                                                            ToolTip="What you open next shows here"
+                                                            Visibility="{Binding HasRecentShortcut, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                                                <ui:Icon Data="{StaticResource IconClock}" Size="16" StrokeThickness="1.9"
+                                                         Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                                            </ContentControl>
+                                            <!-- The divider sits on the line between the first column and the next -->
+                                            <Border Width="1" Height="26" Margin="0,6,0,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                    Background="{DynamicResource DividerBrush}"/>
+                                            <Popup x:Name="ShortcutsRecentBar" StaysOpen="True" AllowsTransparency="True" PopupAnimation="None">
+                                                <ContentControl Style="{StaticResource Popover}" Padding="0" Margin="10">
+                                                    <StackPanel>
+                                                        <Border Style="{StaticResource RecentBarHead}">
+                                                            <DockPanel>
+                                                                <Button DockPanel.Dock="Right" Style="{StaticResource QuietWordButton}" Content="Clear"
+                                                                        Margin="8,-2,-4,-2" Command="{Binding ClearRecentShortcutCommand}" ToolTip="Clear what was opened lately. The tasks and notes themselves stay where they are."/>
+                                                                <TextBlock DockPanel.Dock="Right" Text="{Binding RecentBar.Count}" FontSize="10" FontWeight="SemiBold"
+                                                                           VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"/>
+                                                                <TextBlock Text="RECENTLY OPENED" Style="{StaticResource SectionLabel}" FontSize="9.5" VerticalAlignment="Center"/>
+                                                            </DockPanel>
+                                                        </Border>
+                                                        <ItemsControl ItemsSource="{Binding RecentBar}" AlternationCount="100" Focusable="False" Margin="8,10,8,8" MinWidth="256">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <Border Style="{StaticResource RecentBarDivider}"/>
+                                                                        <Button Style="{StaticResource TileShortcut}" Width="56" ui:Caption.Text="{Binding Title}"
+                                                                                Click="RecentBarItem_Click" MouseEnter="BarItem_MouseEnter" ContextMenuOpening="Shortcut_ContextMenuOpening"
+                                                                                Tag="{Binding IsActive, Converter={StaticResource BoolOnOff}}">
+                                                                            <ContentControl Content="{Binding}" Focusable="False"/>
+                                                                        </Button>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <!-- The square pointed at, told in full: the bar's own preview -->
+                                                        <Border Style="{StaticResource RecentBarFoot}">
+                                                            <ContentControl x:Name="ShortcutsBarDetail" Focusable="False">
+                                                                <ContentControl.Resources>
+                                                                    <DataTemplate DataType="{x:Type vm:ShortcutTask}">
+                                                                        <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource TaskBarDetail}"/>
+                                                                    </DataTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:ShortcutNoteRow}">
+                                                                        <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource NoteBarDetail}"/>
+                                                                    </DataTemplate>
+                                                                </ContentControl.Resources>
+                                                            </ContentControl>
+                                                        </Border>
+                                                    </StackPanel>
+                                                </ContentControl>
+                                            </Popup>
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding PinnedSquares}" Focusable="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.Resources>
+                                                <DataTemplate DataType="{x:Type vm:ShortcutTask}">
+                                                    <Button Style="{StaticResource TileTask}" ui:PinBadge.Shown="True" ui:Caption.Text="{Binding Title}"
+                                                            ui:Preview.Template="{StaticResource TaskPreview}" MouseEnter="Preview_MouseEnter" MouseLeave="Preview_MouseLeave"
+                                                            Command="{Binding DataContext.OpenShortcutCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}" ContextMenuOpening="Shortcut_ContextMenuOpening"
+                                                            Tag="{Binding IsActive, Converter={StaticResource BoolOnOff}}">
+                                                        <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconTask}"/>
+                                                    </Button>
+                                                </DataTemplate>
+                                                <DataTemplate DataType="{x:Type vm:ShortcutNoteRow}">
+                                                    <Button Style="{StaticResource TileNote}" ui:PinBadge.Shown="True" ui:Caption.Text="{Binding Title}"
+                                                            ui:Preview.Template="{StaticResource NotePreview}" MouseEnter="Preview_MouseEnter" MouseLeave="Preview_MouseLeave"
+                                                            Command="{Binding DataContext.OpenShortcutCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}" ContextMenuOpening="Shortcut_ContextMenuOpening"
+                                                            Tag="{Binding IsActive, Converter={StaticResource BoolOnOff}}">
+                                                        <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconNote}"/>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.Resources>
+                                        </ItemsControl>
+                                        <ContentControl Style="{StaticResource SquarePlaceholder}" ui:Caption.Text="Pinned"
+                                                        ToolTip="Right-click a task or a note and pick Pin to Shortcuts"
+                                                        Visibility="{Binding HasPinnedShortcuts, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                                            <ui:Icon Data="{StaticResource IconPin}" Size="16" StrokeThickness="1.9"
+                                                     Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                                        </ContentControl>
+                                        <Button Style="{StaticResource SquareTile}" ui:Caption.Text="More" ToolTip="Everything pinned"
+                                                Click="ShortcutsMore_Click"
+                                                Visibility="{Binding HasMorePinned, Converter={StaticResource Vis}}">
+                                            <TextBlock Text="{Binding MorePinned, StringFormat='+{0}'}" FontSize="12" FontWeight="SemiBold"/>
+                                        </Button>
+                                    </StackPanel>
+
+                                    <!--
+                                        As a list, drawn as the NOTES list is: Recent, folding open on what was
+                                        opened lately, then the pins at the top. Clear pinned is on the
+                                        heading's right-click menu.
+                                    -->
+                                    <StackPanel Visibility="{Binding ShowShortcutList, Converter={StaticResource Vis}}">
+                                        <StackPanel.Resources>
+                                            <DataTemplate DataType="{x:Type vm:ShortcutTask}">
+                                                <Button Style="{StaticResource ShortcutRow}"/>
+                                            </DataTemplate>
+                                            <DataTemplate DataType="{x:Type vm:ShortcutNoteRow}">
+                                                <Button Style="{StaticResource ShortcutNoteRowStyle}"/>
+                                            </DataTemplate>
+                                        </StackPanel.Resources>
+                                        <Button Style="{StaticResource ShortcutGroupRow}" Command="{Binding ToggleRecentShortcutsCommand}"
+                                                Tag="{Binding IsRecentShortcutsOpen, Converter={StaticResource BoolOnOff}}">
+                                            <DockPanel>
+                                                <ui:Icon DockPanel.Dock="Left" Margin="0,0,6,0" Data="{StaticResource IconClock}" Size="14" StrokeThickness="2"
+                                                         Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                                <Button Style="{StaticResource ShortcutClear}" Content="Clear" Command="{Binding ClearRecentShortcutCommand}"
+                                                        IsEnabled="{Binding HasRecentShortcut}"
+                                                        ToolTip="Clear Recent. The tasks and notes themselves stay where they are."/>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding RecentBar.Count}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource NoteTreeCount}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding HasRecentShortcut}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="Recent" VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                        </Button>
+                                        <StackPanel Visibility="{Binding IsRecentShortcutsOpen, Converter={StaticResource Vis}}">
+                                            <ItemsControl ItemsSource="{Binding RecentBar}" Focusable="False"/>
+                                            <TextBlock Margin="32,2,8,6" FontSize="11.5" TextWrapping="Wrap" Foreground="{DynamicResource TextFaintBrush}"
+                                                       Text="What you open shows here."
+                                                       Visibility="{Binding HasRecentShortcut, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                                        </StackPanel>
+
+                                        <ItemsControl ItemsSource="{Binding PinnedShortcuts}" Focusable="False"/>
+                                        <TextBlock Margin="25,4,8,6" FontSize="11.5" TextWrapping="Wrap" Foreground="{DynamicResource TextFaintBrush}"
+                                                   Text="Right-click a task or a note and pick Pin to Shortcuts."
+                                                   Visibility="{Binding HasPinnedShortcuts, Converter={StaticResource Vis}, ConverterParameter=invert}"/>
+                                    </StackPanel>
+
+                                    <!-- Notes: Markdown files opened in MikuDo, newest first; the button at the end shows them as squares -->
+                                    <DockPanel Margin="0,14,0,4" LastChildFill="False" Background="Transparent"
+                                               ContextMenuOpening="NotesHeader_ContextMenuOpening">
                                         <Button DockPanel.Dock="Left" Style="{StaticResource SectionHeader}" Content="NOTES"
                                                 Command="{Binding ToggleNotesSectionCommand}"
                                                 Tag="{Binding IsNotesOpen, Converter={StaticResource BoolOnOff}}"/>
-                                        <Button x:Name="NotesAddButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}"
+                                        <Button DockPanel.Dock="Right" Width="22" Height="22" Command="{Binding ToggleNotesCompactCommand}"
+                                                Visibility="{Binding IsNotesOpen, Converter={StaticResource Vis}}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                                    <Setter Property="ToolTip" Value="Show as squares"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsNotesCompact}" Value="True">
+                                                            <Setter Property="ToolTip" Value="Show as a list"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <ui:Icon Size="13" StrokeThickness="2" Stroke="{DynamicResource TextFaintBrush}">
+                                                <ui:Icon.Style>
+                                                    <Style TargetType="ui:Icon">
+                                                        <Setter Property="Data" Value="{StaticResource IconSquares}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsNotesCompact}" Value="True">
+                                                                <Setter Property="Data" Value="{StaticResource IconList}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ui:Icon.Style>
+                                            </ui:Icon>
+                                        </Button>
+                                        <Button x:Name="NotesAddButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Margin="0,0,6,0"
                                                 Width="22" Height="22" ToolTip="Open a note, or make a new one" Click="NotesAdd_Click">
                                             <ui:Icon Data="{StaticResource IconPlus}" Size="13" StrokeThickness="2.4"
                                                      Stroke="{DynamicResource TextFaintBrush}"/>
                                         </Button>
                                     </DockPanel>
-                                    <StackPanel Visibility="{Binding IsNotesOpen, Converter={StaticResource Vis}}">
+
+                                    <!--
+                                        As squares: the note opened last, a divider, then the opened folders,
+                                        as many as fit. Resting on the note shows the others opened lately in
+                                        a bar under it; a folder opens in the tree.
+                                    -->
+                                    <StackPanel Orientation="Horizontal" Margin="-1,0,0,4"
+                                                Visibility="{Binding ShowNoteSquares, Converter={StaticResource Vis}}">
+                                        <Grid>
+                                            <Button x:Name="NotesRecentSquare" Style="{StaticResource TileNote}" DataContext="{Binding LatestNote}"
+                                                    ui:Caption.Text="{Binding Title}"
+                                                    Command="{Binding DataContext.OpenNoteRowCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}" ContextMenuOpening="NoteRow_ContextMenuOpening"
+                                                    Tag="{Binding IsActive, Converter={StaticResource BoolOnOff}}"
+                                                    Visibility="{Binding DataContext.HasLatestNote, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Vis}}">
+                                                <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconNote}"/>
+                                            </Button>
+                                            <ContentControl Style="{StaticResource SquarePlaceholder}" ui:Caption.Text="Recent"
+                                                            ToolTip="The note you open next shows here"
+                                                            Visibility="{Binding HasLatestNote, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                                                <ui:Icon Data="{StaticResource IconNote}" Size="16" StrokeThickness="1.9"
+                                                         Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                                            </ContentControl>
+                                            <Border Width="1" Height="26" Margin="0,6,0,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                    Background="{DynamicResource DividerBrush}"/>
+                                            <Popup x:Name="NotesRecentBar" StaysOpen="True" AllowsTransparency="True" PopupAnimation="None">
+                                                <ContentControl Style="{StaticResource Popover}" Padding="0" Margin="10">
+                                                    <StackPanel>
+                                                        <Border Style="{StaticResource RecentBarHead}">
+                                                            <DockPanel>
+                                                                <Button DockPanel.Dock="Right" Style="{StaticResource QuietWordButton}" Content="Clear"
+                                                                        Margin="8,-2,-4,-2" Command="{Binding ClearRecentNotesCommand}" ToolTip="Clear the notes viewed lately. The files themselves stay where they are."/>
+                                                                <TextBlock DockPanel.Dock="Right" Text="{Binding RecentNoteBar.Count}" FontSize="10" FontWeight="SemiBold"
+                                                                           VerticalAlignment="Center" Foreground="{DynamicResource TextFaintBrush}"/>
+                                                                <TextBlock Text="RECENTLY VIEWED NOTES" Style="{StaticResource SectionLabel}" FontSize="9.5" VerticalAlignment="Center"/>
+                                                            </DockPanel>
+                                                        </Border>
+                                                        <ItemsControl ItemsSource="{Binding RecentNoteBar}" AlternationCount="100" Focusable="False" Margin="8,10,8,8" MinWidth="256">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <Border Style="{StaticResource RecentBarDivider}"/>
+                                                                        <Button Style="{StaticResource TileNote}" Width="56" ui:Caption.Text="{Binding Title}"
+                                                                                Click="NoteBarItem_Click" MouseEnter="BarItem_MouseEnter" ContextMenuOpening="NoteRow_ContextMenuOpening"
+                                                                                Tag="{Binding IsActive, Converter={StaticResource BoolOnOff}}">
+                                                                            <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconNote}"/>
+                                                                        </Button>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <!-- The square pointed at, told in full: the bar's own preview -->
+                                                        <Border Style="{StaticResource RecentBarFoot}">
+                                                            <ContentControl x:Name="NotesBarDetail" Focusable="False" ContentTemplate="{StaticResource NoteBarDetail}"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                </ContentControl>
+                                            </Popup>
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding FolderSquares}" Focusable="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Style="{StaticResource TileFolder}" ui:Caption.Text="{Binding Name}" Click="FolderSquare_Click" ui:Preview.Template="{StaticResource FolderPreview}" ui:Preview.HasActions="True" MouseEnter="Preview_MouseEnter" MouseLeave="Preview_MouseLeave">
+                                                        <ui:Icon Style="{StaticResource TileGlyph}" Data="{StaticResource IconFolder}"/>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <ContentControl Style="{StaticResource SquarePlaceholder}" ui:Caption.Text="Folders"
+                                                        ToolTip="Open a folder of notes with + above to keep it here"
+                                                        Visibility="{Binding HasFolderSquares, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                                            <ui:Icon Data="{StaticResource IconFolder}" Size="16" StrokeThickness="1.9"
+                                                     Stroke="{DynamicResource TextGhostSoftBrush}"/>
+                                        </ContentControl>
+                                        <Button Style="{StaticResource SquareTile}" Command="{Binding ShowAllNotesCommand}"
+                                                ui:Caption.Text="More" ToolTip="Every folder, in the tree"
+                                                Visibility="{Binding HasMoreFolders, Converter={StaticResource Vis}}">
+                                            <TextBlock Text="{Binding MoreFolders, StringFormat='+{0}'}" FontSize="12" FontWeight="SemiBold"/>
+                                        </Button>
+                                    </StackPanel>
+
+                                    <StackPanel Visibility="{Binding ShowNoteList, Converter={StaticResource Vis}}">
                                         <!-- Recent, then each opened folder: one row per line, indented by depth -->
                                         <ItemsControl ItemsSource="{Binding NoteRows}" Focusable="False">
                                             <ItemsControl.Resources>
@@ -1112,6 +2155,77 @@
                         </Thumb.Template>
                     </Thumb>
 
+                    <!--
+                        Hides the sidebar: a small rounded square sitting on its edge, level
+                        with the MAIN MENU heading, shaped like the buttons of the folded sidebar. It slides out of the edge while the
+                        pointer is near it, from either side, and is gone otherwise, so it
+                        takes no room and never covers the page. Tag is "on" while it shows.
+                    -->
+                    <Button x:Name="HideSidebarBubble" Grid.Column="0" Width="24" Height="24" Margin="0,15,-12,0"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Tag="off" Cursor="Hand"
+                            Command="{Binding ToggleSidebarCommand}"
+                            ToolTip="{Binding [window.sidebar], Source={x:Static svc:ShortcutText.InParens}, StringFormat='Hide the sidebar{0}'}"
+                            Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource BaseButton}">
+                                <Setter Property="IsHitTestVisible" Value="False"/>
+                                <Style.Triggers>
+                                    <Trigger Property="Tag" Value="on">
+                                        <Setter Property="IsHitTestVisible" Value="True"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Grid x:Name="root" Opacity="0">
+                                    <Grid.RenderTransform>
+                                        <TranslateTransform X="-6"/>
+                                    </Grid.RenderTransform>
+                                    <ui:SoftShadow CornerRadius="7" BlurRadius="8" ShadowDepth="2" ShadowOpacity="0.18"
+                                                   Color="{DynamicResource ShadowColor}"/>
+                                    <Border x:Name="bd" CornerRadius="7" BorderThickness="1"
+                                            Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}">
+                                        <ui:Icon x:Name="arrow" Data="{StaticResource IconChevronLeft}" Size="10" StrokeThickness="2.6"
+                                                 Margin="-1,0,0,0" Stroke="{DynamicResource TextSecondaryBrush}"/>
+                                    </Border>
+                                </Grid>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="Tag" Value="on">
+                                        <Trigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="root" Storyboard.TargetProperty="Opacity"
+                                                                     To="1" Duration="0:0:0.11" EasingFunction="{StaticResource EaseOut}"/>
+                                                    <DoubleAnimation Storyboard.TargetName="root" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                     To="0" Duration="0:0:0.13" EasingFunction="{StaticResource EaseOutBack}"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </Trigger.EnterActions>
+                                        <Trigger.ExitActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="root" Storyboard.TargetProperty="Opacity"
+                                                                     To="0" Duration="0:0:0.09" EasingFunction="{StaticResource EaseOut}"/>
+                                                    <DoubleAnimation Storyboard.TargetName="root" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                     To="-6" Duration="0:0:0.09" EasingFunction="{StaticResource EaseOut}"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </Trigger.ExitActions>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                        <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}"/>
+                                        <Setter TargetName="arrow" Property="Stroke" Value="{DynamicResource AccentDarkBrush}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
                     <!-- Collapsed, the sidebar keeps an icon rail: shut but plainly
                          still there, and the main destinations stay one click away -->
                     <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}"
@@ -1186,6 +2300,11 @@
                             <Grid/>
                         </DockPanel>
                     </Border>
+
+                    <!-- The one preview card, moved beside whichever square the pointer rests on -->
+                    <Popup x:Name="PreviewPopup" AllowsTransparency="True" StaysOpen="True" PopupAnimation="None">
+                        <ContentControl Style="{StaticResource PreviewCard}"/>
+                    </Popup>
 
                     <!-- ═══ Modals ═══ -->
                     <!-- The star rows and columns give the dialog exactly 80% of the app area -->

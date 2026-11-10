@@ -1237,18 +1237,22 @@
         </Setter>
     </Style>
 
-    <!-- Window buttons living in the canvas margin around the app card -->
+    <!--
+        Minimise, maximise and close, as Windows draws its own: the full height
+        of the title bar and 46 wide, flush with the window's corner. Hovered,
+        the whole button takes the colour; pressed, it darkens a shade. The
+        template asks for its hover colour through Tag, so close can be red.
+    -->
     <Style x:Key="WindowChromeButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
-        <Setter Property="Width" Value="26"/>
-        <Setter Property="Height" Value="26"/>
+        <Setter Property="Width" Value="46"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="Tag" Value="{DynamicResource SurfaceBrush}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid x:Name="root" RenderTransformOrigin="0.5,0.5">
-                        <Grid.RenderTransform>
-                            <ScaleTransform/>
-                        </Grid.RenderTransform>
-                        <Border x:Name="hover" CornerRadius="7" Opacity="0" Background="{DynamicResource SurfaceBrush}"/>
+                    <Grid Background="Transparent">
+                        <Border x:Name="hover" Opacity="0" Background="{TemplateBinding Tag}"/>
+                        <Border x:Name="press" Opacity="0" Background="Black"/>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -1257,8 +1261,7 @@
                             <Trigger.ExitActions><BeginStoryboard Storyboard="{StaticResource HoverOut}"/></Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Trigger.EnterActions><BeginStoryboard Storyboard="{StaticResource PressIn}"/></Trigger.EnterActions>
-                            <Trigger.ExitActions><BeginStoryboard Storyboard="{StaticResource PressOut}"/></Trigger.ExitActions>
+                            <Setter TargetName="press" Property="Opacity" Value="0.1"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -1267,29 +1270,7 @@
     </Style>
 
     <Style x:Key="WindowCloseButton" TargetType="Button" BasedOn="{StaticResource WindowChromeButton}">
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Grid x:Name="root" RenderTransformOrigin="0.5,0.5">
-                        <Grid.RenderTransform>
-                            <ScaleTransform/>
-                        </Grid.RenderTransform>
-                        <Border x:Name="hover" CornerRadius="7" Opacity="0" Background="{DynamicResource WindowCloseHoverBrush}"/>
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Grid>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Trigger.EnterActions><BeginStoryboard Storyboard="{StaticResource HoverIn}"/></Trigger.EnterActions>
-                            <Trigger.ExitActions><BeginStoryboard Storyboard="{StaticResource HoverOut}"/></Trigger.ExitActions>
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Trigger.EnterActions><BeginStoryboard Storyboard="{StaticResource PressIn}"/></Trigger.EnterActions>
-                            <Trigger.ExitActions><BeginStoryboard Storyboard="{StaticResource PressOut}"/></Trigger.ExitActions>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="Tag" Value="{DynamicResource WindowCloseHoverBrush}"/>
     </Style>
 
     <!-- ══════════════ Text inputs ══════════════ -->

@@ -351,6 +351,7 @@ public partial class MainViewModel
         list.Insert(0, new OpenedItem(kind, key));
         if (list.Count > OpenedLimit) list.RemoveRange(OpenedLimit, list.Count - OpenedLimit);
         App.Database.SaveSetting("QuickRecent", JsonSerializer.Serialize(list));
+        RememberShortcutRecent(kind == NoteKind ? NotePin + Path.GetFullPath(key) : key);
     }
 
     private static bool SamePathQuietly(string a, string b)

@@ -35,7 +35,7 @@
 
 <p align="center"><img src="docs/screenshots/boards.png" alt="One board as a Table, a List and a Kanban board"></p>
 
-**One board, three ways: Kanban, List and Table.** Drag cards between lists or send one to the top of its list, drop one by another to make it a subtask, group subtasks under their parent, and <kbd>Ctrl</kbd>+click to change several cards at once. Each card says when it was made and when its words were last edited, in your own time zone.
+**One board, three ways: Kanban, List and Table.** Drag cards between lists or send one to the top of its list, and it keeps that place while everything else sorts by priority, then newest first; pin one to **Shortcuts** in the sidebar, beside your pinned notes and whatever you opened last; drop one card on another to make it a subtask, group subtasks under their parent, and <kbd>Ctrl</kbd>+click to change several cards at once. Each card says when it was made and when its words were last edited, in your own time zone.
 
 <table>
   <tr>
@@ -149,7 +149,7 @@ Five themes, **Sun**, **Moon**, **Miku Special**, **Pastel Pink** and **Contrast
 
 <table>
   <tr>
-    <td width="50%" valign="top"><b>Islands or Flat</b><br><sub>Cards on a canvas, or edge to edge.</sub></td>
+    <td width="50%" valign="top"><b>Islands or Flat</b><br><sub>Cards on a canvas, or edge to edge with square corners, the window's included.</sub></td>
     <td width="50%" valign="top"><b>Your keys</b><br><sub>Give any command its own shortcut, or find one by pressing its keys. A key already in use says which command has it.</sub></td>
   </tr>
   <tr>

@@ -86,6 +86,11 @@ public partial class TaskCardViewModel : ObservableObject
     public TodoItem Item { get; private set; }
     public BoardViewModel Board { get; }
 
+    /// <summary>The menu row that pins the card to the sidebar's Shortcuts, or unpins it.</summary>
+    public string PinLabel => Board.IsPinned(Item) ? "Unpin from Shortcuts" : "Pin to Shortcuts";
+
+    public void RaisePinLabel() => OnPropertyChanged(nameof(PinLabel));
+
     public string Title => Item.Title;
     public string Description { get; private set; } = string.Empty;
     public List<TagChip> Tags { get; private set; } = EmptyTags;

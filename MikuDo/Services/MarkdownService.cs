@@ -100,7 +100,7 @@ public class MarkdownService
             li.task-list-item.done{color:{{muted}}}
             li.task-list-item.done>.mikudo-own{text-decoration:line-through}
             .mikudo-task,.mikudo-made{position:absolute;right:8px;top:4px;display:none;align-items:center;gap:5px;
-                              font-size:11.5px;font-weight:700;border-radius:99px;padding:3px 10px;cursor:pointer;
+                              font-size:11.5px;font-weight:700;border-radius:7px;padding:3px 10px;cursor:pointer;
                               font-family:inherit;line-height:1.4}
             .mikudo-task{color:{{accent}};background:{{surface}};border:1px solid {{accentBorder}}}
             .mikudo-task:hover{background:{{accentFill}};color:{{onAccent}};border-color:{{accentFill}}}
@@ -126,8 +126,25 @@ public class MarkdownService
             h3,h4,h5,h6{font-size:13px;font-weight:700;color:{{heading}};margin:14px 0 6px}
             p{margin:0 0 9px}
             strong{font-weight:700;color:{{heading}}}
-            a{color:{{accent}};text-decoration:none}
-            a:hover{text-decoration:underline}
+            a{color:{{accent}};font-weight:600;text-decoration:underline;text-decoration-color:{{accentBorder}};
+              text-decoration-thickness:1.5px;text-underline-offset:3px;border-radius:4px;
+              transition:background-color .12s,box-shadow .12s,text-decoration-color .12s}
+            a:hover{text-decoration-color:currentColor;background:{{accentSoft}};box-shadow:0 0 0 2px {{accentSoft}}}
+            a:has(img){text-decoration:none;background:none;box-shadow:none}
+            a[href^="http"]:not(:has(img))::after{content:"";display:inline-block;width:.66em;height:.66em;margin:0 .04em 0 .24em;
+              vertical-align:.02em;background:currentColor;opacity:.7;
+              -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21,13 v6 a2,2 0 0 1 -2,2 H5 a2,2 0 0 1 -2,-2 V5 a2,2 0 0 1 2,-2 h6 M15,3 h6 v6 M10,14 L21,3'/%3E%3C/svg%3E") center/contain no-repeat}
+            .mikudo-tip{position:fixed;z-index:2147483647;pointer-events:none;user-select:none;display:flex;align-items:flex-start;
+              gap:6px;max-width:min(440px,calc(100vw - 16px));padding:5px 8px;border-radius:6px;background:{{heading}};color:{{surface}};
+              font:500 11px/1.45 'Plus Jakarta Sans','Segoe UI',sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.16);
+              opacity:0;transform:translateY(-2px);transition:opacity .12s ease-out,transform .12s ease-out}
+            .mikudo-tip.shown{opacity:1;transform:none}
+            .mikudo-tip svg{flex:none;width:12px;height:12px;margin-top:2px;fill:none;stroke:currentColor;stroke-width:2.2;
+              stroke-linecap:round;stroke-linejoin:round;opacity:.8}
+            .mikudo-tip-words{min-width:0;overflow-wrap:anywhere}
+            .mikudo-tip-title{display:block;font-weight:700}
+            .mikudo-tip-where{display:block;opacity:.75}
+            @media (prefers-reduced-motion:reduce){.mikudo-tip,a{transition:none} }
             ul,ol{margin:0 0 9px;padding-left:20px}
             li{margin:0 0 6px}
             ul li::marker{color:{{bullet}}}
