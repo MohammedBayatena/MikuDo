@@ -158,7 +158,7 @@ Five themes, **Sun**, **Moon**, **Miku Special**, **Pastel Pink** and **Contrast
   </tr>
 </table>
 
-Also yours to set: **App size**, which draws everything up to 160% for easier reading; a sidebar GIF, picked from your last five, hidden or made shorter; Auto Save; the AI and speech models; and screenshots of one screen or all of them. Panel widths, the sidebar and how each board is sorted and grouped are remembered as you leave them.
+Also yours to set: **App size**, which draws everything at 90% to fit more in, or up to 160% for easier reading; a sidebar GIF, picked from your last five, hidden or made shorter; Auto Save; the AI and speech models; and screenshots of one screen or all of them. Panel widths, the sidebar and how each board is sorted and grouped are remembered as you leave them. Dashboard, Vault, Trash, your workspaces, Shortcuts and Notes can each fold into a row of named squares to save room, each square coloured for what it stands for in every theme: point at a square for a short preview, or at a Recent square for the last five things you opened, with Clear to empty that list. A note can be pinned to Shortcuts from its right-click menu, as a task can. A small arrow that appears on the sidebar's edge as you point near it hides the sidebar.
 
 ---
 

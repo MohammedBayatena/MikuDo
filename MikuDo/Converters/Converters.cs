@@ -49,11 +49,11 @@ public class BoolToOnOffConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-/// <summary>"on" when the bound value equals the converter parameter.</summary>
+/// <summary>"on" when the bound value equals the converter parameter, or one of several it names as "A|B".</summary>
 public class EqualsToOnOffConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => string.Equals(value?.ToString(), parameter?.ToString(), StringComparison.Ordinal) ? "on" : "off";
+        => (parameter?.ToString() ?? string.Empty).Split('|').Contains(value?.ToString() ?? string.Empty, StringComparer.Ordinal) ? "on" : "off";
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();

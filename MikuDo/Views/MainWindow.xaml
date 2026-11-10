@@ -1332,19 +1332,8 @@
                                     </Grid>
                                 </Button>
 
-                                <Button Style="{StaticResource NavButton}" Command="{Binding NavigateToAboutCommand}"
-                                        Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=About}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <ui:Icon Data="{StaticResource IconAbout}" Size="17"
-                                                 Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                        <TextBlock Text="About" Margin="10,0,0,0" VerticalAlignment="Center"
-                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                   FontSize="13" FontWeight="{Binding FontWeight, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                                    </StackPanel>
-                                </Button>
-
                                 <Button Style="{StaticResource NavButton}" Command="{Binding NavigateToSettingsCommand}"
-                                        Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Settings}">
+                                        Tag="{Binding CurrentPage, Converter={StaticResource EqOnOff}, ConverterParameter=Settings|About}">
                                     <StackPanel Orientation="Horizontal">
                                         <ui:Icon Data="{StaticResource IconSettings}" Size="17"
                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
